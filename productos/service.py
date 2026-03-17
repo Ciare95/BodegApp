@@ -42,3 +42,84 @@ def crear_producto(data: dict, usuario) -> Producto:
     )
 
     return producto
+
+
+from productos.models import Historial
+
+# Campos FK del producto y cómo obtener su representación legible
+CAMPOS_PRODUCTO = [
+    'subcategoria',
+    'medida_principal',
+    'medida_secundaria',
+    'codigo_uno',
+    'codigo_dos',
+    'estado',
+]
+
+
+def _valor_legible(campo: str, instancia) -> str:
+    """Retorna representación string del valor actual de un campo."""
+    valor = getattr(instancia, campo)
+    if valor is None:
+        return ''
+    # Para FK retorna el valor/nombre del catálogo referenciado
+    if hasattr(valor, 'valor'):
+        return valor.valor
+    if hasattr(valor, 'nombre'):
+        return valor.nombre
+    return str(valor)
+
+
+def actualizar_producto(producto, data: dict, usuario) -> 'Producto':
+    """
+    Actualiza un producto campo por campo y registra en Historial
+    cada campo que haya cambiado.
+
+    Args:
+        producto: Instancia de Producto a actualizar.
+        data: Diccionario con los campos nuevos (solo los que se quieren cambiar).
+        usuario: Instancia de Usuario que realiza la acción.
+
+    Returns:
+        Producto: instancia actualizada y persistida.
+    """
+    campos_modificados = []
+
+    for campo in CAMPOS_PRODUCTO:
+        if campo not in data:
+            continue
+
+        valor_anterior = _valor_legible(campo, producto)
+        nuevo_valor_obj = data[campo]
+
+        # Obtener representación legible del nuevo valor
+        if nuevo_valor_obj is None:
+            valor_nuevo = ''
+        elif hasattr(nuevo_valor_obj, 'valor'):
+            valor_nuevo = nuevo_valor_obj.valor
+        elif hasattr(nuevo_valor_obj, 'nombre'):
+            valor_nuevo = nuevo_valor_obj.nombre
+        else:
+            valor_nuevo = str(nuevo_valor_obj)
+
+        if valor_anterior != valor_nuevo:
+            setattr(producto, campo, nuevo_valor_obj)
+            campos_modificados.append((campo, valor_anterior, valor_nuevo))
+
+    if campos_modificados:
+        producto.actualizado_por = usuario
+        producto.save()
+
+        registros = [
+            Historial(
+                producto=producto,
+                usuario=usuario,
+                campo_modificado=campo,
+                valor_anterior=v_anterior,
+                valor_nuevo=v_nuevo,
+            )
+            for campo, v_anterior, v_nuevo in campos_modificados
+        ]
+        Historial.objects.bulk_create(registros)
+
+    return producto
