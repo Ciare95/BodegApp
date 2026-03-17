@@ -25,7 +25,11 @@ class Producto(models.Model):
 
     @property
     def nombre_completo(self):
-        partes = [self.subcategoria.nombre, self.medida_principal.valor]
+        partes = [
+            self.subcategoria.categoria.nombre,
+            self.subcategoria.nombre,
+            self.medida_principal.valor,
+        ]
         if self.medida_secundaria:
             partes.append(f"X {self.medida_secundaria.valor}")
         return ' '.join(partes)
