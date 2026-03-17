@@ -123,3 +123,46 @@ def actualizar_producto(producto, data: dict, usuario) -> 'Producto':
         Historial.objects.bulk_create(registros)
 
     return producto
+
+
+def cambiar_estado(producto, nuevo_estado: str, usuario) -> 'Producto':
+    """
+    Cambia el estado de un producto y registra el cambio en Historial.
+
+    Args:
+        producto: Instancia de Producto a actualizar.
+        nuevo_estado: Uno de 'verde', 'amarillo', 'rojo'.
+        usuario: Instancia de Usuario que realiza la acción.
+
+    Returns:
+        Producto: instancia actualizada.
+
+    Raises:
+        ValidationError: si el nuevo estado no es válido o es igual al actual.
+    """
+    estados_validos = {'verde', 'amarillo', 'rojo'}
+
+    if nuevo_estado not in estados_validos:
+        raise ValidationError(
+            f"Estado inválido '{nuevo_estado}'. Debe ser: {', '.join(estados_validos)}."
+        )
+
+    if producto.estado == nuevo_estado:
+        raise ValidationError(
+            f"El producto ya tiene el estado '{nuevo_estado}'."
+        )
+
+    estado_anterior = producto.estado
+    producto.estado = nuevo_estado
+    producto.actualizado_por = usuario
+    producto.save()
+
+    Historial.objects.create(
+        producto=producto,
+        usuario=usuario,
+        campo_modificado='estado',
+        valor_anterior=estado_anterior,
+        valor_nuevo=nuevo_estado,
+    )
+
+    return producto
