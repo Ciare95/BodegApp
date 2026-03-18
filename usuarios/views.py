@@ -1,10 +1,44 @@
+import hashlib
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 
 from usuarios.models import Usuario
 from usuarios.serializers import UsuarioRegistroSerializer, UsuarioPerfilSerializer
 from usuarios.permissions import EsSoloAdmin, EsAdminOEmpleado
+from usuarios.authentication import obtener_tokens_para_usuario
+
+
+class LoginView(APIView):
+    """
+    POST /api/token/
+    Recibe email + password, valida contra Usuario y devuelve tokens JWT.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        password = request.data.get('password', '')
+
+        if not email or not password:
+            return Response(
+                {'detail': 'Se requieren email y password.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        try:
+            usuario = Usuario.objects.get(email=email, password_hash=password_hash)
+        except Usuario.DoesNotExist:
+            return Response(
+                {'detail': 'Credenciales incorrectas.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        tokens = obtener_tokens_para_usuario(usuario)
+        return Response(tokens, status=status.HTTP_200_OK)
 
 
 class RegistroUsuarioView(APIView):
