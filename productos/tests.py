@@ -1,6 +1,7 @@
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from rest_framework import status
 from productos.models import Producto
 
 
@@ -243,3 +244,165 @@ class TestEliminarCatalogo:
     def test_no_elimina_catalogo_referenciado(self, producto, codigo_uno):
         with pytest.raises(ValidationError):
             eliminar_valor_catalogo(codigo_uno)
+
+
+# ---------------------------------------------------------------------------
+# BAPP-48 Tests endpoints Producto
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestProductoEndpoints:
+
+    def _data_producto(
+        self, subcategoria, medida_principal, medida_secundaria,
+        codigo_uno, codigo_dos
+    ):
+        return {
+            'subcategoria': subcategoria.pk,
+            'medida_principal': medida_principal.pk,
+            'medida_secundaria': medida_secundaria.pk,
+            'codigo_uno': codigo_uno.pk,
+            'codigo_dos': codigo_dos.pk,
+            'estado': 'verde',
+        }
+
+    def test_admin_puede_crear_producto(
+        self, cliente_admin, subcategoria, medida_principal,
+        medida_secundaria, codigo_uno, codigo_dos
+    ):
+        data = self._data_producto(
+            subcategoria, medida_principal, medida_secundaria,
+            codigo_uno, codigo_dos
+        )
+        response = cliente_admin.post('/api/productos/', data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert 'nombre_completo' in response.data
+        assert 'codigo_completo' in response.data
+
+    def test_empleado_no_puede_crear_producto(
+        self, cliente_empleado, subcategoria, medida_principal,
+        medida_secundaria, codigo_uno, codigo_dos
+    ):
+        data = self._data_producto(
+            subcategoria, medida_principal, medida_secundaria,
+            codigo_uno, codigo_dos
+        )
+        response = cliente_empleado.post('/api/productos/', data)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_listar_productos(self, cliente_empleado, producto):
+        response = cliente_empleado.get('/api/productos/')
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) >= 1
+
+    def test_busqueda_por_codigo(self, cliente_admin, producto):
+        response = cliente_admin.get('/api/productos/?q=EB')
+        assert response.status_code == status.HTTP_200_OK
+        assert any('EB' in p['codigo_completo'] for p in response.data)
+
+    def test_busqueda_sin_resultados(self, cliente_admin, producto):
+        response = cliente_admin.get('/api/productos/?q=ZZZZZ')
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 0
+
+    def test_cambiar_estado_empleado(self, cliente_empleado, producto):
+        response = cliente_empleado.patch(
+            f'/api/productos/{producto.pk}/cambiar-estado/',
+            {'estado': 'rojo'},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['estado'] == 'rojo'
+
+    def test_cambiar_estado_invalido(self, cliente_admin, producto):
+        response = cliente_admin.patch(
+            f'/api/productos/{producto.pk}/cambiar-estado/',
+            {'estado': 'azul'},
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_admin_puede_editar_producto(
+        self, cliente_admin, producto, codigo_uno
+    ):
+        from categorias.models import CodigoUno
+        nuevo = CodigoUno.objects.create(valor='GB')
+        response = cliente_admin.patch(
+            f'/api/productos/{producto.pk}/',
+            {'codigo_uno': nuevo.pk},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_admin_puede_eliminar_producto(self, cliente_admin, producto):
+        response = cliente_admin.delete(f'/api/productos/{producto.pk}/')
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+
+# ---------------------------------------------------------------------------
+# BAPP-49 Tests endpoint Historial
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestHistorialEndpoints:
+
+    def test_cambio_de_estado_genera_historial(
+        self, cliente_admin, producto
+    ):
+        cliente_admin.patch(
+            f'/api/productos/{producto.pk}/cambiar-estado/',
+            {'estado': 'amarillo'},
+        )
+        response = cliente_admin.get(
+            f'/api/historial/?producto_id={producto.pk}'
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) >= 1
+        registro = response.data[0]
+        assert registro['campo_modificado'] == 'estado'
+        assert registro['valor_anterior'] == 'verde'
+        assert registro['valor_nuevo'] == 'amarillo'
+
+    def test_empleado_no_puede_ver_historial(
+        self, cliente_empleado, producto
+    ):
+        response = cliente_empleado.get(
+            f'/api/historial/?producto_id={producto.pk}'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_historial_filtrado_por_producto(
+        self, cliente_admin, producto
+    ):
+        response = cliente_admin.get(
+            f'/api/historial/?producto_id={producto.pk}'
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert all(
+            r['producto'] == producto.pk for r in response.data
+        )
+
+
+# ---------------------------------------------------------------------------
+# BAPP-50 Tests endpoint QR
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestQREndpoints:
+
+    def test_qr_retorna_base64(self, cliente_admin, producto):
+        response = cliente_admin.get(f'/api/qr/{producto.pk}/')
+        assert response.status_code == status.HTTP_200_OK
+        assert 'imagen' in response.data
+        assert len(response.data['imagen']) > 0
+
+    def test_qr_descarga_retorna_png(self, cliente_admin, producto):
+        response = cliente_admin.get(f'/api/qr/{producto.pk}/descargar/')
+        assert response.status_code == status.HTTP_200_OK
+        assert response['Content-Type'] == 'image/png'
+        assert 'attachment' in response['Content-Disposition']
+
+    def test_qr_producto_inexistente_retorna_404(self, cliente_admin):
+        response = cliente_admin.get('/api/qr/99999/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_empleado_puede_generar_qr(self, cliente_empleado, producto):
+        response = cliente_empleado.get(f'/api/qr/{producto.pk}/')
+        assert response.status_code == status.HTTP_200_OK

@@ -81,3 +81,25 @@ def producto(db, subcategoria, medida_principal, medida_secundaria, codigo_uno, 
         estado='verde',
         actualizado_por=admin,
     )
+
+
+# --- Clientes API autenticados ---
+
+@pytest.fixture
+def api_client():
+    from rest_framework.test import APIClient
+    return APIClient()
+
+
+@pytest.fixture
+def cliente_admin(api_client, admin):
+    """APIClient autenticado como admin usando force_authenticate."""
+    api_client.force_authenticate(user=admin)
+    return api_client
+
+
+@pytest.fixture
+def cliente_empleado(api_client, empleado):
+    """APIClient autenticado como empleado usando force_authenticate."""
+    api_client.force_authenticate(user=empleado)
+    return api_client
