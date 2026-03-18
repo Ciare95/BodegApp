@@ -35,3 +35,30 @@ class PerfilUsuarioView(APIView):
     def get(self, request):
         serializer = UsuarioPerfilSerializer(request.user)
         return Response(serializer.data)
+
+
+from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
+
+
+class UsuarioViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestión de usuarios. Solo accesible por admin.
+    - list / retrieve: listar y ver detalle
+    - create: delega a RegistroUsuarioView (hashea password)
+    - update / partial_update: editar nombre, email, rol
+    - destroy: eliminar usuario
+    """
+    permission_classes = [EsSoloAdmin]
+    queryset = Usuario.objects.all().order_by('nombre')
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return UsuarioRegistroSerializer
+        return UsuarioPerfilSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        usuario = self.get_object()
+        if usuario == request.user:
+            raise ValidationError('No puedes eliminar tu propio usuario.')
+        return super().destroy(request, *args, **kwargs)

@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/token/revocar/', TokenBlacklistView.as_view(), name='token_blacklist'),
     path('api/usuarios/', include('usuarios.urls')),
     path('api/', include('categorias.urls')),
+    path('api/', include('productos.urls')),
 ]
