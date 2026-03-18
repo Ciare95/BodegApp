@@ -65,3 +65,19 @@ def codigo_uno(db):
 @pytest.fixture
 def codigo_dos(db):
     return CodigoDos.objects.create(valor='40')
+
+
+# --- Producto base ---
+
+@pytest.fixture
+def producto(db, subcategoria, medida_principal, medida_secundaria, codigo_uno, codigo_dos, admin):
+    from productos.models import Producto
+    return Producto.objects.create(
+        subcategoria=subcategoria,
+        medida_principal=medida_principal,
+        medida_secundaria=medida_secundaria,
+        codigo_uno=codigo_uno,
+        codigo_dos=codigo_dos,
+        estado='verde',
+        actualizado_por=admin,
+    )
