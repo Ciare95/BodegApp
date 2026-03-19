@@ -46,6 +46,16 @@ class ProductoViewSet(viewsets.ModelViewSet):
             ) | qs.filter(
                 codigo_dos__valor__icontains=q
             )
+            qs = qs.distinct()
+
+        categoria_id = self.request.query_params.get('categoria_id')
+        if categoria_id:
+            qs = qs.filter(subcategoria__categoria_id=categoria_id)
+
+        estado = self.request.query_params.get('estado')
+        if estado:
+            qs = qs.filter(estado=estado)
+
         return qs.distinct()
 
     def get_serializer_class(self):
