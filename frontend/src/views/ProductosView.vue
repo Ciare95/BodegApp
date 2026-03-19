@@ -24,18 +24,26 @@
     <table v-else class="tabla">
       <thead>
         <tr>
-          <th>Código</th>
           <th>Nombre</th>
+          <th>Código</th>
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="p in productos" :key="p.id">
-          <td class="codigo">{{ p.codigo_completo }}</td>
           <td>{{ p.nombre_completo }}</td>
+          <td class="codigo">{{ p.codigo_completo }}</td>
           <td>
-            <span :class="['badge', p.estado]">{{ p.estado }}</span>
+            <div class="estado-selector">
+              <button
+                v-for="op in estados"
+                :key="op.valor"
+                :class="['btn-estado', op.valor, { activo: p.estado === op.valor }]"
+                :title="op.valor"
+                @click="cambiarEstado(p, op.valor)"
+              >{{ op.label }}</button>
+            </div>
           </td>
           <td>
             <RouterLink :to="`/productos/${p.id}`" class="btn-link">Ver</RouterLink>
@@ -61,6 +69,23 @@ const categorias = ref([])
 const filtroCategoria = ref('')
 const filtroEstado = ref('')
 const cargando = ref(false)
+
+const estados = [
+  { valor: 'verde', label: '●' },
+  { valor: 'amarillo', label: '●' },
+  { valor: 'rojo', label: '●' },
+]
+
+async function cambiarEstado(producto, nuevoEstado) {
+  if (producto.estado === nuevoEstado) return
+  if (!window.confirm(`¿Cambiar estado de "${producto.codigo_completo}" a "${nuevoEstado}"?`)) return
+  try {
+    await client.patch(`/productos/${producto.id}/cambiar-estado/`, { estado: nuevoEstado })
+    producto.estado = nuevoEstado
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Error al cambiar estado')
+  }
+}
 
 async function cargar() {
   cargando.value = true
@@ -131,6 +156,34 @@ select {
 .tabla th { background: #f8fafc; font-weight: 600; }
 
 .codigo { font-weight: bold; font-family: monospace; }
+
+.estado-selector {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-estado {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  transition: opacity 0.15s, border-color 0.15s;
+  padding: 0;
+}
+
+.btn-estado:hover { opacity: 0.7; }
+
+.btn-estado.activo { opacity: 1; border-color: #1e293b; }
+
+.btn-estado.verde { background: #16a34a; color: #16a34a; }
+.btn-estado.amarillo { background: #ca8a04; color: #ca8a04; }
+.btn-estado.rojo { background: #dc2626; color: #dc2626; }
 
 .badge {
   padding: 0.15rem 0.5rem;

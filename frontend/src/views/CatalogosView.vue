@@ -64,28 +64,28 @@ const tabs = computed(() => [
     label: 'Medidas principales',
     endpoint: '/medidas-principales/',
     campo: 'valor',
-    label: 'Valor',
+    label: 'Medida Principal',
   },
   {
     key: 'medidas-secundarias',
     label: 'Medidas secundarias',
     endpoint: '/medidas-secundarias/',
     campo: 'valor',
-    label: 'Valor',
+    label: 'Medida Secundaria',
   },
   {
     key: 'codigos-uno',
     label: 'Códigos (prefijo)',
     endpoint: '/codigos-uno/',
     campo: 'valor',
-    label: 'Valor',
+    label: 'Código Uno',
   },
   {
     key: 'codigos-dos',
     label: 'Códigos (sufijo)',
     endpoint: '/codigos-dos/',
     campo: 'valor',
-    label: 'Valor',
+    label: 'Código Dos',
   },
 ])
 

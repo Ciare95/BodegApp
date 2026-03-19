@@ -160,9 +160,10 @@ async function cargarProducto() {
   form.codigo_uno = data.codigo_uno
   form.codigo_dos = data.codigo_dos
   form.estado = data.estado
-  // Preseleccionar categoría para filtrar subcategorías
-  const sub = catalogos.subcategorias.find((s) => s.id === data.subcategoria)
-  if (sub) categoriaId.value = sub.categoria?.id ?? sub.categoria
+  // Preseleccionar categoría usando el detalle anidado
+  if (data.subcategoria_detalle) {
+    categoriaId.value = data.subcategoria_detalle.categoria_id
+  }
 }
 
 async function guardar() {

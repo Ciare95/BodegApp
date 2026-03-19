@@ -21,7 +21,10 @@ class Producto(models.Model):
     actualizado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='productos_actualizados')
 
     class Meta:
-        unique_together = ['subcategoria', 'medida_principal', 'medida_secundaria', 'codigo_uno', 'codigo_dos']
+        unique_together = [
+            ['subcategoria', 'medida_principal', 'medida_secundaria'],  # nombre único
+            ['codigo_uno', 'codigo_dos'],                                # código único globalmente
+        ]
 
     @property
     def nombre_completo(self):

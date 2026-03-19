@@ -25,52 +25,63 @@ class HistorialSerializer(serializers.ModelSerializer):
 
 class ProductoSerializer(serializers.ModelSerializer):
     """
-    Serializer para el modelo Producto.
-
-    Expone nombre_completo y codigo_completo como campos calculados
-    de solo lectura. Los campos FK incluyen representaciones anidadas
-    de los catálogos para facilitar la visualización.
+    Serializer de lectura para Producto.
+    Expone IDs de FK (para edición) y campos calculados.
     """
-
     nombre_completo = serializers.SerializerMethodField()
     codigo_completo = serializers.SerializerMethodField()
-    subcategoria = serializers.StringRelatedField()
-    medida_principal = serializers.StringRelatedField()
-    medida_secundaria = serializers.StringRelatedField(allow_null=True)
-    codigo_uno = serializers.StringRelatedField()
-    codigo_dos = serializers.StringRelatedField()
-    actualizado_por = serializers.StringRelatedField(allow_null=True)
+
+    # Detalles anidados para mostrar en vistas
+    subcategoria_detalle = serializers.SerializerMethodField()
+    medida_principal_detalle = serializers.SerializerMethodField()
+    medida_secundaria_detalle = serializers.SerializerMethodField()
+    actualizado_por_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Producto
         fields = [
             'id',
-            'subcategoria',
-            'medida_principal',
-            'medida_secundaria',
-            'codigo_uno',
-            'codigo_dos',
+            'subcategoria',           # ID (para edición)
+            'medida_principal',       # ID
+            'medida_secundaria',      # ID
+            'codigo_uno',             # ID
+            'codigo_dos',             # ID
             'estado',
             'creado_en',
             'actualizado_en',
-            'actualizado_por',
             'nombre_completo',
             'codigo_completo',
+            'subcategoria_detalle',
+            'medida_principal_detalle',
+            'medida_secundaria_detalle',
+            'actualizado_por_nombre',
         ]
-        read_only_fields = [
-            'creado_en',
-            'actualizado_en',
-            'nombre_completo',
-            'codigo_completo',
-        ]
+        read_only_fields = fields
 
     def get_nombre_completo(self, obj):
-        """Retorna el nombre completo del producto."""
         return obj.nombre_completo
 
     def get_codigo_completo(self, obj):
-        """Retorna el código completo del producto."""
         return obj.codigo_completo
+
+    def get_subcategoria_detalle(self, obj):
+        return {
+            'id': obj.subcategoria.id,
+            'nombre': obj.subcategoria.nombre,
+            'categoria_id': obj.subcategoria.categoria.id,
+            'categoria_nombre': obj.subcategoria.categoria.nombre,
+        }
+
+    def get_medida_principal_detalle(self, obj):
+        return {'id': obj.medida_principal.id, 'valor': obj.medida_principal.valor}
+
+    def get_medida_secundaria_detalle(self, obj):
+        if obj.medida_secundaria:
+            return {'id': obj.medida_secundaria.id, 'valor': obj.medida_secundaria.valor}
+        return None
+
+    def get_actualizado_por_nombre(self, obj):
+        return obj.actualizado_por.nombre if obj.actualizado_por else None
 
 
 class ProductoWriteSerializer(serializers.ModelSerializer):
