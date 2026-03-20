@@ -36,20 +36,40 @@
         </select>
       </div>
 
-      <div class="field">
-        <label>Código (prefijo) *</label>
-        <select v-model="form.codigo_uno" required>
-          <option value="">Seleccionar...</option>
-          <option v-for="c in catalogos.codigos_uno" :key="c.id" :value="c.id">{{ c.valor }}</option>
-        </select>
-      </div>
+      <!-- Sección de códigos -->
+      <div class="codigos-seccion">
+        <div class="codigos-header">
+          <label>Códigos *</label>
+          <button type="button" class="btn-agregar-codigo" @click="agregarFilaCodigo">+ Añadir Código</button>
+        </div>
 
-      <div class="field">
-        <label>Código (sufijo) *</label>
-        <select v-model="form.codigo_dos" required>
-          <option value="">Seleccionar...</option>
-          <option v-for="c in catalogos.codigos_dos" :key="c.id" :value="c.id">{{ c.valor }}</option>
-        </select>
+        <div
+          v-for="(cod, idx) in form.codigos"
+          :key="idx"
+          class="codigo-fila"
+        >
+          <div class="codigo-selects">
+            <select v-model="cod.codigo_uno" required>
+              <option value="">Prefijo...</option>
+              <option v-for="c in catalogos.codigos_uno" :key="c.id" :value="c.id">{{ c.valor }}</option>
+            </select>
+            <span class="separador">-</span>
+            <select v-model="cod.codigo_dos" required>
+              <option value="">Sufijo...</option>
+              <option v-for="c in catalogos.codigos_dos" :key="c.id" :value="c.id">{{ c.valor }}</option>
+            </select>
+            <span class="preview-codigo-inline" v-if="previewCodigo(cod)">
+              {{ previewCodigo(cod) }}
+            </span>
+          </div>
+          <button
+            v-if="form.codigos.length > 1"
+            type="button"
+            class="btn-quitar-codigo"
+            title="Quitar código"
+            @click="quitarFilaCodigo(idx)"
+          >✕</button>
+        </div>
       </div>
 
       <div class="field">
@@ -61,10 +81,9 @@
         </select>
       </div>
 
-      <!-- Preview -->
-      <div v-if="preview.nombre || preview.codigo" class="preview">
-        <span class="preview-codigo">{{ preview.codigo }}</span>
-        <span class="preview-nombre">{{ preview.nombre }}</span>
+      <!-- Preview nombre -->
+      <div v-if="previewNombre" class="preview">
+        <span class="preview-nombre">{{ previewNombre }}</span>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -80,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
 
@@ -93,9 +112,8 @@ const form = reactive({
   subcategoria: '',
   medida_principal: '',
   medida_secundaria: '',
-  codigo_uno: '',
-  codigo_dos: '',
   estado: 'verde',
+  codigos: [{ codigo_uno: '', codigo_dos: '' }],
 })
 
 const catalogos = reactive({
@@ -116,20 +134,28 @@ const subcategoriasFiltradas = computed(() => {
   return catalogos.subcategorias.filter((s) => s.categoria?.id === Number(categoriaId.value))
 })
 
-const preview = computed(() => {
+const previewNombre = computed(() => {
   const sub = catalogos.subcategorias.find((s) => s.id === Number(form.subcategoria))
   const mp = catalogos.medidas_principales.find((m) => m.id === Number(form.medida_principal))
   const ms = catalogos.medidas_secundarias.find((m) => m.id === Number(form.medida_secundaria))
-  const c1 = catalogos.codigos_uno.find((c) => c.id === Number(form.codigo_uno))
-  const c2 = catalogos.codigos_dos.find((c) => c.id === Number(form.codigo_dos))
-
-  const nombre = sub && mp
-    ? `${sub.categoria?.nombre ?? ''} ${sub.nombre} ${mp.valor}${ms ? ' X ' + ms.valor : ''}`.trim()
-    : ''
-  const codigo = c1 && c2 ? `${c1.valor}-${c2.valor}` : ''
-
-  return { nombre, codigo }
+  if (!sub || !mp) return ''
+  return `${sub.categoria?.nombre ?? ''} ${sub.nombre} ${mp.valor}${ms ? ' X ' + ms.valor : ''}`.trim()
 })
+
+function previewCodigo(cod) {
+  const c1 = catalogos.codigos_uno.find((c) => c.id === Number(cod.codigo_uno))
+  const c2 = catalogos.codigos_dos.find((c) => c.id === Number(cod.codigo_dos))
+  if (c1 && c2) return `${c1.valor}-${c2.valor}`
+  return ''
+}
+
+function agregarFilaCodigo() {
+  form.codigos.push({ codigo_uno: '', codigo_dos: '' })
+}
+
+function quitarFilaCodigo(idx) {
+  form.codigos.splice(idx, 1)
+}
 
 function onCategoriaChange() {
   form.subcategoria = ''
@@ -157,10 +183,11 @@ async function cargarProducto() {
   form.subcategoria = data.subcategoria
   form.medida_principal = data.medida_principal
   form.medida_secundaria = data.medida_secundaria ?? ''
-  form.codigo_uno = data.codigo_uno
-  form.codigo_dos = data.codigo_dos
   form.estado = data.estado
-  // Preseleccionar categoría usando el detalle anidado
+  // Cargar códigos existentes
+  form.codigos = data.codigos?.length
+    ? data.codigos.map((c) => ({ codigo_uno: c.codigo_uno, codigo_dos: c.codigo_dos }))
+    : [{ codigo_uno: '', codigo_dos: '' }]
   if (data.subcategoria_detalle) {
     categoriaId.value = data.subcategoria_detalle.categoria_id
   }
@@ -168,15 +195,24 @@ async function cargarProducto() {
 
 async function guardar() {
   error.value = ''
+  // Validar que todos los códigos estén completos
+  for (const cod of form.codigos) {
+    if (!cod.codigo_uno || !cod.codigo_dos) {
+      error.value = 'Completa todos los campos de código antes de guardar.'
+      return
+    }
+  }
   guardando.value = true
   try {
     const payload = {
       subcategoria: form.subcategoria,
       medida_principal: form.medida_principal,
       medida_secundaria: form.medida_secundaria || null,
-      codigo_uno: form.codigo_uno,
-      codigo_dos: form.codigo_dos,
       estado: form.estado,
+      codigos: form.codigos.map((c) => ({
+        codigo_uno: c.codigo_uno,
+        codigo_dos: c.codigo_dos,
+      })),
     }
     if (esEdicion.value) {
       await client.put(`/productos/${route.params.id}/`, payload)
@@ -186,7 +222,7 @@ async function guardar() {
     router.push('/productos')
   } catch (e) {
     const data = e.response?.data
-    error.value = typeof data === 'string' ? data : JSON.stringify(data) || 'Error al guardar'
+    error.value = data?.detail ?? (typeof data === 'string' ? data : JSON.stringify(data)) ?? 'Error al guardar'
   } finally {
     guardando.value = false
   }
@@ -199,7 +235,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.form-page { max-width: 560px; }
+.form-page { max-width: 580px; }
 h2 { margin-bottom: 1.5rem; }
 
 .form {
@@ -224,24 +260,92 @@ select {
   background: white;
 }
 
-.preview {
+/* Sección códigos */
+.codigos-seccion {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  padding: 0.75rem 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
 }
 
-.preview-codigo {
+.codigos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.codigos-header label {
+  font-size: 0.875rem;
+  color: #475569;
+  margin: 0;
+}
+
+.btn-agregar-codigo {
+  padding: 0.3rem 0.7rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.codigo-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.codigo-selects {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.codigo-selects select {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.separador {
+  font-weight: bold;
+  color: #64748b;
+}
+
+.preview-codigo-inline {
   font-family: monospace;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 0.85rem;
   background: #1e293b;
   color: white;
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem 0.45rem;
   border-radius: 3px;
+  white-space: nowrap;
+}
+
+.btn-quitar-codigo {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.btn-quitar-codigo:hover { background: #fee2e2; }
+
+.preview {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
 }
 
 .preview-nombre { color: #166534; font-weight: 500; }

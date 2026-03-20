@@ -19,7 +19,13 @@
           <td v-for="ce in camposExtra" :key="ce.key">{{ item[ce.key] }}</td>
           <td>
             <span v-if="editandoId !== item.id">{{ item[campo] }}</span>
-            <input v-else v-model="editValor" @keydown.enter="guardarEdicion(item)" @keydown.escape="cancelarEdicion" />
+            <input
+              v-else
+              v-model="editValor"
+              @input="editValor = editValor.toUpperCase()"
+              @keydown.enter="guardarEdicion(item)"
+              @keydown.escape="cancelarEdicion"
+            />
           </td>
           <td>
             <template v-if="editandoId !== item.id">
@@ -52,7 +58,12 @@
           </select>
         </template>
 
-        <input v-model="nuevoValor" :placeholder="label" @keydown.enter="crear" />
+        <input
+          v-model="nuevoValor"
+          :placeholder="label"
+          @input="nuevoValor = nuevoValor.toUpperCase()"
+          @keydown.enter="crear"
+        />
         <p v-if="errorModal" class="error">{{ errorModal }}</p>
         <div class="modal-acciones">
           <button @click="mostrarModal = false">Cancelar</button>

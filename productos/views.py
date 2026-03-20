@@ -7,46 +7,43 @@ from productos.models import Producto, Historial
 from productos.serializers import (
     ProductoSerializer,
     ProductoWriteSerializer,
+    ProductoCodigoSerializer,
+    ProductoCodigoWriteSerializer,
     HistorialSerializer,
 )
-from productos.service import crear_producto, actualizar_producto, cambiar_estado
+from productos.service import (
+    crear_producto,
+    actualizar_producto,
+    cambiar_estado,
+    agregar_codigo,
+    eliminar_codigo,
+)
 from usuarios.permissions import EsSoloAdmin, EsAdminOEmpleado
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para Producto.
-    - list / retrieve / buscar: admin y empleado
-    - create / update / destroy: solo admin
-    - cambiar_estado: admin y empleado
-    """
 
     def get_queryset(self):
         qs = Producto.objects.select_related(
             'subcategoria__categoria',
             'medida_principal',
             'medida_secundaria',
-            'codigo_uno',
-            'codigo_dos',
             'actualizado_por',
+        ).prefetch_related(
+            'codigos__codigo_uno',
+            'codigos__codigo_dos',
         ).order_by('orden', 'id')
 
         q = self.request.query_params.get('q')
         if q:
-            qs = qs.filter(
-                subcategoria__nombre__icontains=q
-            ) | qs.filter(
-                subcategoria__categoria__nombre__icontains=q
-            ) | qs.filter(
-                medida_principal__valor__icontains=q
-            ) | qs.filter(
-                medida_secundaria__valor__icontains=q
-            ) | qs.filter(
-                codigo_uno__valor__icontains=q
-            ) | qs.filter(
-                codigo_dos__valor__icontains=q
+            qs = (
+                qs.filter(subcategoria__nombre__icontains=q)
+                | qs.filter(subcategoria__categoria__nombre__icontains=q)
+                | qs.filter(medida_principal__valor__icontains=q)
+                | qs.filter(medida_secundaria__valor__icontains=q)
+                | qs.filter(codigos__codigo_uno__valor__icontains=q)
+                | qs.filter(codigos__codigo_dos__valor__icontains=q)
             )
-            qs = qs.distinct()
 
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
@@ -73,10 +70,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             producto = crear_producto(serializer.validated_data, request.user)
-            return Response(
-                ProductoSerializer(producto).data,
-                status=status.HTTP_201_CREATED,
-            )
+            return Response(ProductoSerializer(producto).data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
             return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -87,44 +81,55 @@ class ProductoViewSet(viewsets.ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         try:
-            producto = actualizar_producto(
-                producto, serializer.validated_data, request.user
-            )
+            producto = actualizar_producto(producto, serializer.validated_data, request.user)
             return Response(ProductoSerializer(producto).data)
+        except ValidationError as e:
+            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='codigos', permission_classes=[EsSoloAdmin])
+    def agregar_codigo(self, request, pk=None):
+        """POST /api/productos/{id}/codigos/ — agrega un código al producto."""
+        producto = self.get_object()
+        serializer = ProductoCodigoWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            pc = agregar_codigo(
+                producto,
+                serializer.validated_data['codigo_uno'],
+                serializer.validated_data['codigo_dos'],
+                request.user,
+            )
+            return Response(ProductoCodigoSerializer(pc).data, status=status.HTTP_201_CREATED)
+        except ValidationError as e:
+            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['delete'], url_path='codigos/(?P<codigo_id>[0-9]+)', permission_classes=[EsSoloAdmin])
+    def eliminar_codigo(self, request, pk=None, codigo_id=None):
+        """DELETE /api/productos/{id}/codigos/{codigo_id}/ — elimina un código."""
+        producto = self.get_object()
+        try:
+            eliminar_codigo(producto, int(codigo_id), request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except ValidationError as e:
             return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'], url_path='reordenar', permission_classes=[EsSoloAdmin])
     def reordenar(self, request):
-        """
-        POST /api/productos/reordenar/
-        Body: { "orden": [id1, id2, id3, ...] }
-        Actualiza el campo orden de cada producto según la posición en la lista.
-        """
         ids = request.data.get('orden', [])
         if not ids:
             return Response({'detail': 'Se requiere la lista orden.'}, status=status.HTTP_400_BAD_REQUEST)
-
         from django.db import transaction
         with transaction.atomic():
             for posicion, producto_id in enumerate(ids):
                 Producto.objects.filter(id=producto_id).update(orden=posicion)
-
         return Response({'detail': 'Orden actualizado.'})
 
     @action(detail=True, methods=['patch'], url_path='cambiar-estado')
     def cambiar_estado(self, request, pk=None):
-        """
-        PATCH /api/productos/{id}/cambiar-estado/
-        Body: { "estado": "amarillo" }
-        """
         producto = self.get_object()
         nuevo_estado = request.data.get('estado')
         if not nuevo_estado:
-            return Response(
-                {'detail': 'El campo estado es requerido.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({'detail': 'El campo estado es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             producto = cambiar_estado(producto, nuevo_estado, request.user)
             return Response(ProductoSerializer(producto).data)
@@ -133,11 +138,6 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
 
 class HistorialViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet de solo lectura para Historial.
-    Filtrable por producto_id: GET /api/historial/?producto_id=1
-    Solo admin puede consultar.
-    """
     serializer_class = HistorialSerializer
     permission_classes = [EsSoloAdmin]
 

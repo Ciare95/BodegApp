@@ -1,37 +1,41 @@
 from rest_framework import serializers
-from productos.models import Producto, Historial
+from productos.models import Producto, ProductoCodigo, Historial
+
+
+class ProductoCodigoSerializer(serializers.ModelSerializer):
+    codigo_uno_valor = serializers.CharField(source='codigo_uno.valor', read_only=True)
+    codigo_dos_valor = serializers.CharField(source='codigo_dos.valor', read_only=True)
+    codigo_completo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductoCodigo
+        fields = ['id', 'codigo_uno', 'codigo_dos', 'codigo_uno_valor', 'codigo_dos_valor', 'codigo_completo']
+
+    def get_codigo_completo(self, obj):
+        return f"{obj.codigo_uno.valor}-{obj.codigo_dos.valor}"
+
+
+class ProductoCodigoWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductoCodigo
+        fields = ['codigo_uno', 'codigo_dos']
+        # La validación de unicidad la maneja el service (excluye los del propio producto)
+        validators = []
 
 
 class HistorialSerializer(serializers.ModelSerializer):
-    """
-    Serializer para el modelo Historial.
-
-    Expone los campos de registro de cambios en productos.
-    """
-
     class Meta:
         model = Historial
-        fields = [
-            'id',
-            'producto',
-            'usuario',
-            'campo_modificado',
-            'valor_anterior',
-            'valor_nuevo',
-            'fecha',
-        ]
+        fields = ['id', 'producto', 'usuario', 'campo_modificado', 'valor_anterior', 'valor_nuevo', 'fecha']
         read_only_fields = fields
 
 
 class ProductoSerializer(serializers.ModelSerializer):
-    """
-    Serializer de lectura para Producto.
-    Expone IDs de FK (para edición) y campos calculados.
-    """
+    """Serializer de lectura para Producto."""
     nombre_completo = serializers.SerializerMethodField()
     codigo_completo = serializers.SerializerMethodField()
+    codigos = ProductoCodigoSerializer(many=True, read_only=True)
 
-    # Detalles anidados para mostrar en vistas
     subcategoria_detalle = serializers.SerializerMethodField()
     medida_principal_detalle = serializers.SerializerMethodField()
     medida_secundaria_detalle = serializers.SerializerMethodField()
@@ -41,16 +45,16 @@ class ProductoSerializer(serializers.ModelSerializer):
         model = Producto
         fields = [
             'id',
-            'subcategoria',           # ID (para edición)
-            'medida_principal',       # ID
-            'medida_secundaria',      # ID
-            'codigo_uno',             # ID
-            'codigo_dos',             # ID
+            'subcategoria',
+            'medida_principal',
+            'medida_secundaria',
             'estado',
+            'orden',
             'creado_en',
             'actualizado_en',
             'nombre_completo',
             'codigo_completo',
+            'codigos',
             'subcategoria_detalle',
             'medida_principal_detalle',
             'medida_secundaria_detalle',
@@ -85,19 +89,9 @@ class ProductoSerializer(serializers.ModelSerializer):
 
 
 class ProductoWriteSerializer(serializers.ModelSerializer):
-    """
-    Serializer de escritura para Producto.
-    Acepta FK como IDs para crear/actualizar desde el frontend.
-    """
-    from categorias.models import Subcategoria, MedidaPrincipal, MedidaSecundaria, CodigoUno, CodigoDos
+    """Serializer de escritura. Los códigos se manejan por separado."""
+    codigos = ProductoCodigoWriteSerializer(many=True, required=False)
 
     class Meta:
         model = Producto
-        fields = [
-            'subcategoria',
-            'medida_principal',
-            'medida_secundaria',
-            'codigo_uno',
-            'codigo_dos',
-            'estado',
-        ]
+        fields = ['subcategoria', 'medida_principal', 'medida_secundaria', 'estado', 'codigos']

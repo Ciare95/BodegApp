@@ -45,7 +45,11 @@
         >
           <td v-if="auth.esAdmin" class="col-drag" title="Arrastrar para reordenar">⠿</td>
           <td>{{ p.nombre_completo }}</td>
-          <td class="codigo">{{ p.codigo_completo }}</td>
+          <td class="codigo">
+            <span v-for="c in p.codigos" :key="c.id" class="codigo-tag">
+              {{ c.codigo_completo }}
+            </span>
+          </td>
           <td>
             <div class="estado-selector">
               <button
@@ -236,6 +240,18 @@ select {
 }
 
 .codigo { font-weight: bold; font-family: monospace; }
+
+.codigo-tag {
+  display: inline-block;
+  background: #1e293b;
+  color: white;
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-right: 0.3rem;
+}
 
 .estado-selector { display: flex; gap: 0.25rem; }
 

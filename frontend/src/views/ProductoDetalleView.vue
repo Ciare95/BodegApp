@@ -5,7 +5,13 @@
     <div class="detalle-header">
       <div>
         <h2>{{ producto.nombre_completo }}</h2>
-        <span class="codigo-badge">{{ producto.codigo_completo }}</span>
+        <div class="codigos-badges">
+          <span
+            v-for="c in producto.codigos"
+            :key="c.id"
+            class="codigo-badge"
+          >{{ c.codigo_completo }}</span>
+        </div>
       </div>
       <div class="acciones">
         <RouterLink v-if="auth.esAdmin" :to="`/productos/${producto.id}/editar`" class="btn-secondary">
@@ -108,6 +114,13 @@ onMounted(cargar)
 }
 
 h2 { margin: 0 0 0.25rem; }
+
+.codigos-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
 
 .codigo-badge {
   font-family: monospace;

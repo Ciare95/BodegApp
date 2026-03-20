@@ -13,8 +13,6 @@ class Producto(models.Model):
     subcategoria = models.ForeignKey(Subcategoria, on_delete=models.PROTECT, related_name='productos')
     medida_principal = models.ForeignKey(MedidaPrincipal, on_delete=models.PROTECT, related_name='productos')
     medida_secundaria = models.ForeignKey(MedidaSecundaria, on_delete=models.PROTECT, related_name='productos', null=True, blank=True)
-    codigo_uno = models.ForeignKey(CodigoUno, on_delete=models.PROTECT, related_name='productos')
-    codigo_dos = models.ForeignKey(CodigoDos, on_delete=models.PROTECT, related_name='productos')
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='verde')
     orden = models.PositiveIntegerField(default=0)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -24,7 +22,6 @@ class Producto(models.Model):
     class Meta:
         unique_together = [
             ['subcategoria', 'medida_principal', 'medida_secundaria'],  # nombre único
-            ['codigo_uno', 'codigo_dos'],                                # código único globalmente
         ]
         ordering = ['subcategoria__categoria', 'orden', 'id']
 
@@ -41,10 +38,34 @@ class Producto(models.Model):
 
     @property
     def codigo_completo(self):
-        return f"{self.codigo_uno.valor}-{self.codigo_dos.valor}"
+        """Retorna el primer código como representación principal."""
+        primer = self.codigos.order_by('id').first()
+        if primer:
+            return f"{primer.codigo_uno.valor}-{primer.codigo_dos.valor}"
+        return '—'
+
+    @property
+    def codigos_lista(self):
+        return [
+            f"{c.codigo_uno.valor}-{c.codigo_dos.valor}"
+            for c in self.codigos.select_related('codigo_uno', 'codigo_dos').order_by('id')
+        ]
 
     def __str__(self):
         return f"{self.codigo_completo} — {self.nombre_completo}"
+
+
+class ProductoCodigo(models.Model):
+    """Código identificatorio de un producto. Un producto puede tener varios."""
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='codigos')
+    codigo_uno = models.ForeignKey(CodigoUno, on_delete=models.PROTECT, related_name='producto_codigos')
+    codigo_dos = models.ForeignKey(CodigoDos, on_delete=models.PROTECT, related_name='producto_codigos')
+
+    class Meta:
+        unique_together = [['codigo_uno', 'codigo_dos']]  # código único globalmente
+
+    def __str__(self):
+        return f"{self.codigo_uno.valor}-{self.codigo_dos.valor}"
 
 
 class Historial(models.Model):
