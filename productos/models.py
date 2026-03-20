@@ -16,6 +16,7 @@ class Producto(models.Model):
     codigo_uno = models.ForeignKey(CodigoUno, on_delete=models.PROTECT, related_name='productos')
     codigo_dos = models.ForeignKey(CodigoDos, on_delete=models.PROTECT, related_name='productos')
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='verde')
+    orden = models.PositiveIntegerField(default=0)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     actualizado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='productos_actualizados')
@@ -25,6 +26,7 @@ class Producto(models.Model):
             ['subcategoria', 'medida_principal', 'medida_secundaria'],  # nombre único
             ['codigo_uno', 'codigo_dos'],                                # código único globalmente
         ]
+        ordering = ['subcategoria__categoria', 'orden', 'id']
 
     @property
     def nombre_completo(self):

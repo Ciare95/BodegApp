@@ -24,6 +24,7 @@
     <table v-else class="tabla">
       <thead>
         <tr>
+          <th v-if="auth.esAdmin" class="col-drag"></th>
           <th>Nombre</th>
           <th>Código</th>
           <th>Estado</th>
@@ -31,7 +32,18 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="p in productos" :key="p.id">
+        <tr
+          v-for="p in productos"
+          :key="p.id"
+          :class="{ 'drag-over': dragOverId === p.id, 'dragging': draggingId === p.id }"
+          :draggable="auth.esAdmin"
+          @dragstart="onDragStart(p)"
+          @dragover.prevent="onDragOver(p)"
+          @dragleave="dragOverId = null"
+          @drop="onDrop(p)"
+          @dragend="onDragEnd"
+        >
+          <td v-if="auth.esAdmin" class="col-drag" title="Arrastrar para reordenar">⠿</td>
           <td>{{ p.nombre_completo }}</td>
           <td class="codigo">{{ p.codigo_completo }}</td>
           <td>
@@ -51,7 +63,7 @@
           </td>
         </tr>
         <tr v-if="!productos.length">
-          <td colspan="4" class="vacio">No hay productos</td>
+          <td :colspan="auth.esAdmin ? 5 : 4" class="vacio">No hay productos</td>
         </tr>
       </tbody>
     </table>
@@ -70,11 +82,58 @@ const filtroCategoria = ref('')
 const filtroEstado = ref('')
 const cargando = ref(false)
 
+// Drag & drop
+const draggingId = ref(null)
+const dragOverId = ref(null)
+let draggingProducto = null
+
 const estados = [
   { valor: 'verde', label: '●' },
   { valor: 'amarillo', label: '●' },
   { valor: 'rojo', label: '●' },
 ]
+
+function onDragStart(p) {
+  draggingProducto = p
+  draggingId.value = p.id
+}
+
+function onDragOver(p) {
+  if (draggingProducto && draggingProducto.id !== p.id) {
+    dragOverId.value = p.id
+  }
+}
+
+function onDrop(target) {
+  if (!draggingProducto || draggingProducto.id === target.id) return
+
+  const lista = productos.value
+  const fromIdx = lista.findIndex((p) => p.id === draggingProducto.id)
+  const toIdx = lista.findIndex((p) => p.id === target.id)
+
+  // Reordenar localmente
+  const item = lista.splice(fromIdx, 1)[0]
+  lista.splice(toIdx, 0, item)
+
+  // Persistir en backend
+  guardarOrden()
+}
+
+function onDragEnd() {
+  draggingId.value = null
+  dragOverId.value = null
+  draggingProducto = null
+}
+
+async function guardarOrden() {
+  try {
+    await client.post('/productos/reordenar/', {
+      orden: productos.value.map((p) => p.id),
+    })
+  } catch (e) {
+    console.error('Error al guardar orden:', e)
+  }
+}
 
 async function cambiarEstado(producto, nuevoEstado) {
   if (producto.estado === nuevoEstado) return
@@ -103,6 +162,9 @@ async function cargar() {
 onMounted(async () => {
   const { data } = await client.get('/categorias/')
   categorias.value = data.results ?? data
+  if (categorias.value.length) {
+    filtroCategoria.value = categorias.value[0].id
+  }
   await cargar()
 })
 </script>
@@ -155,12 +217,27 @@ select {
 
 .tabla th { background: #f8fafc; font-weight: 600; }
 
+.col-drag {
+  width: 32px;
+  text-align: center;
+  color: #94a3b8;
+  cursor: grab;
+  font-size: 1.1rem;
+  user-select: none;
+}
+
+.tabla tr[draggable="true"] { cursor: grab; }
+.tabla tr[draggable="true"]:active { cursor: grabbing; }
+
+.dragging { opacity: 0.4; }
+
+.drag-over td {
+  border-top: 2px solid #3b82f6;
+}
+
 .codigo { font-weight: bold; font-family: monospace; }
 
-.estado-selector {
-  display: flex;
-  gap: 0.25rem;
-}
+.estado-selector { display: flex; gap: 0.25rem; }
 
 .btn-estado {
   width: 24px;
@@ -178,23 +255,10 @@ select {
 }
 
 .btn-estado:hover { opacity: 0.7; }
-
 .btn-estado.activo { opacity: 1; border-color: #1e293b; }
-
-.btn-estado.verde { background: #16a34a; color: #16a34a; }
-.btn-estado.amarillo { background: #ca8a04; color: #ca8a04; }
-.btn-estado.rojo { background: #dc2626; color: #dc2626; }
-
-.badge {
-  padding: 0.15rem 0.5rem;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  text-transform: capitalize;
-}
-
-.badge.verde { background: #dcfce7; color: #166534; }
-.badge.amarillo { background: #fef9c3; color: #854d0e; }
-.badge.rojo { background: #fee2e2; color: #991b1b; }
+.btn-estado.verde { background: #16a34a; }
+.btn-estado.amarillo { background: #ca8a04; }
+.btn-estado.rojo { background: #dc2626; }
 
 .btn-link {
   color: #3b82f6;

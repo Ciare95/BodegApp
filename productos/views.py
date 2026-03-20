@@ -29,7 +29,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
             'codigo_uno',
             'codigo_dos',
             'actualizado_por',
-        ).order_by('subcategoria__nombre')
+        ).order_by('orden', 'id')
 
         q = self.request.query_params.get('q')
         if q:
@@ -93,6 +93,24 @@ class ProductoViewSet(viewsets.ModelViewSet):
             return Response(ProductoSerializer(producto).data)
         except ValidationError as e:
             return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='reordenar', permission_classes=[EsSoloAdmin])
+    def reordenar(self, request):
+        """
+        POST /api/productos/reordenar/
+        Body: { "orden": [id1, id2, id3, ...] }
+        Actualiza el campo orden de cada producto según la posición en la lista.
+        """
+        ids = request.data.get('orden', [])
+        if not ids:
+            return Response({'detail': 'Se requiere la lista orden.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.db import transaction
+        with transaction.atomic():
+            for posicion, producto_id in enumerate(ids):
+                Producto.objects.filter(id=producto_id).update(orden=posicion)
+
+        return Response({'detail': 'Orden actualizado.'})
 
     @action(detail=True, methods=['patch'], url_path='cambiar-estado')
     def cambiar_estado(self, request, pk=None):
