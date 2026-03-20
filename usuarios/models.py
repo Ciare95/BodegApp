@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import RegexValidator
 
 
 class Usuario(models.Model):
@@ -8,6 +9,11 @@ class Usuario(models.Model):
     ]
 
     nombre = models.CharField(max_length=150)
+    username = models.CharField(
+        max_length=50,
+        unique=True,
+        validators=[RegexValidator(r'^[a-zA-Z0-9_-]+$')],
+    )
     email = models.EmailField(unique=True)
     password_hash = models.CharField(max_length=255)
     rol = models.CharField(max_length=10, choices=ROL_CHOICES)

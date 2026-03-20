@@ -9,7 +9,7 @@ def obtener_tokens_para_usuario(usuario):
     """Genera par de tokens JWT para un Usuario personalizado."""
     refresh = RefreshToken()
     refresh['user_id'] = usuario.id
-    refresh['email'] = usuario.email
+    refresh['username'] = usuario.username
     refresh['rol'] = usuario.rol
     return {
         'refresh': str(refresh),

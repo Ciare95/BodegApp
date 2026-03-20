@@ -9,15 +9,15 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="field">
-          <label for="email">Correo electrónico</label>
+          <label for="username">Usuario</label>
           <input
-            id="email"
-            v-model="email"
-            type="email"
-            required
-            autocomplete="email"
-            placeholder="usuario@empresa.com"
+            id="username"
+            v-model="username"
+            type="text"
+            autocomplete="username"
+            placeholder="tu_usuario"
           />
+          <span v-if="errorUsername" class="field-error">El usuario es requerido</span>
         </div>
 
         <div class="field">
@@ -54,19 +54,27 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const router = useRouter()
 
-const email = ref('')
+const username = ref('')
 const password = ref('')
 const error = ref('')
+const errorUsername = ref(false)
 const cargando = ref(false)
 
 async function handleLogin() {
   error.value = ''
+  errorUsername.value = false
+  if (!username.value.trim()) {
+    errorUsername.value = true
+    return
+  }
   cargando.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(username.value.trim(), password.value)
     router.push('/')
   } catch (e) {
-    error.value = e.response?.data?.detail || 'Credenciales incorrectas'
+    error.value = e.response?.status === 401
+      ? 'Usuario o contraseña incorrectos'
+      : (e.response?.data?.detail || 'Error al iniciar sesión')
   } finally {
     cargando.value = false
   }
@@ -151,6 +159,11 @@ input::placeholder { color: var(--ink-4); }
 input:focus {
   border-color: var(--ink);
   box-shadow: 0 0 0 3px rgba(17,17,17,0.06);
+}
+
+.field-error {
+  font-size: 0.75rem;
+  color: var(--rojo);
 }
 
 .error-msg {

@@ -12,8 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const esAdmin = computed(() => usuario.value?.rol === 'admin')
   const esEmpleado = computed(() => usuario.value?.rol === 'empleado')
 
-  async function login(email, password) {
-    const { data } = await axios.post('/api/token/', { email, password })
+  async function login(username, password) {
+    const { data } = await axios.post('/api/token/', { username, password })
     accessToken.value = data.access
     refreshToken.value = data.refresh
     localStorage.setItem('access_token', data.access)

@@ -1,0 +1,4 @@
+# file: C:\laragon\www\BodegApp\usuarios\migrations\0001_initial.py
+# hypothesis_version: 6.151.9
+
+[150, 254, 255, 'Admin', 'Empleado', 'ID', 'Usuario', 'admin', 'creado_en', 'email', 'empleado', 'id', 'nombre', 'password_hash', 'rol']

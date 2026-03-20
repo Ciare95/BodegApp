@@ -18,22 +18,22 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get('email', '').strip()
+        username = request.data.get('username', '').strip()
         password = request.data.get('password', '')
 
-        if not email or not password:
+        if not username or not password:
             return Response(
-                {'detail': 'Se requieren email y password.'},
+                {'detail': 'Se requieren username y password.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         password_hash = hashlib.sha256(password.encode()).hexdigest()
 
         try:
-            usuario = Usuario.objects.get(email=email, password_hash=password_hash)
+            usuario = Usuario.objects.get(username=username, password_hash=password_hash)
         except Usuario.DoesNotExist:
             return Response(
-                {'detail': 'Credenciales incorrectas.'},
+                {'detail': 'Credenciales inválidas'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
