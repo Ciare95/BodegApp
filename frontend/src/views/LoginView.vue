@@ -1,24 +1,48 @@
 <template>
   <div class="login-page">
-    <form class="login-form" @submit.prevent="handleLogin">
-      <h1>BodegApp</h1>
-
-      <div class="field">
-        <label for="email">Correo</label>
-        <input id="email" v-model="email" type="email" required autocomplete="email" />
+    <div class="login-card">
+      <div class="login-header">
+        <span class="login-icon">⬡</span>
+        <h1>BodegApp</h1>
+        <p class="login-sub">Gestión de inventario de bodega</p>
       </div>
 
-      <div class="field">
-        <label for="password">Contraseña</label>
-        <input id="password" v-model="password" type="password" required autocomplete="current-password" />
-      </div>
+      <form @submit.prevent="handleLogin" class="login-form">
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <input
+            id="email"
+            v-model="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="usuario@empresa.com"
+          />
+        </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input
+            id="password"
+            v-model="password"
+            type="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
+        </div>
 
-      <button type="submit" :disabled="cargando">
-        {{ cargando ? 'Ingresando...' : 'Ingresar' }}
-      </button>
-    </form>
+        <p v-if="error" class="error-msg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {{ error }}
+        </p>
+
+        <button type="submit" class="btn-submit" :disabled="cargando">
+          <span v-if="cargando" class="spinner"></span>
+          {{ cargando ? 'Ingresando...' : 'Ingresar' }}
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -55,68 +79,120 @@ async function handleLogin() {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #f1f5f9;
+  background: var(--bg);
+  padding: 1.5rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 2.5rem 2rem;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-icon {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--ink);
+}
+
+h1 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+
+.login-sub {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
 }
 
 .login-form {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-h1 {
-  text-align: center;
-  margin: 0 0 0.5rem;
-  color: #1e293b;
-}
-
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.375rem;
 }
 
 label {
-  font-size: 0.875rem;
-  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink-2);
 }
 
 input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 0.5625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  background: var(--surface);
+  transition: border-color var(--t), box-shadow var(--t);
+  outline: none;
 }
+
+input::placeholder { color: var(--ink-4); }
 
 input:focus {
-  outline: none;
-  border-color: #3b82f6;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(17,17,17,0.06);
 }
 
-.error {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin: 0;
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--rojo);
+  background: var(--rojo-bg);
+  border: 1px solid var(--rojo-bd);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--r-md);
 }
 
-button {
-  padding: 0.6rem;
-  background: #3b82f6;
-  color: white;
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem;
+  background: var(--ink);
+  color: var(--accent-fg);
   border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
+  border-radius: var(--r-md);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: opacity var(--t), transform var(--t);
+  margin-top: 0.25rem;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.btn-submit:hover:not(:disabled) { opacity: 0.85; }
+.btn-submit:active:not(:disabled) { transform: scale(0.99); }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

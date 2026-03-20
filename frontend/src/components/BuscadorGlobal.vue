@@ -1,25 +1,31 @@
 <template>
   <div class="buscador" ref="contenedor">
-    <input
-      v-model="query"
-      type="search"
-      placeholder="Buscar producto por nombre o código..."
-      @input="buscar"
-      @focus="mostrarResultados = true"
-      @keydown.escape="cerrar"
-    />
+    <div class="input-wrap">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input
+        v-model="query"
+        type="search"
+        placeholder="Buscar por nombre o código..."
+        @input="buscar"
+        @focus="mostrarResultados = true"
+        @keydown.escape="cerrar"
+      />
+    </div>
 
-    <ul v-if="mostrarResultados && resultados.length" class="resultados">
-      <li v-for="p in resultados" :key="p.id" @click="irAProducto(p)">
-        <span class="codigo">{{ p.codigo_completo }}</span>
-        <span class="nombre">{{ p.nombre_completo }}</span>
-        <span :class="['estado', p.estado]">{{ p.estado }}</span>
-      </li>
-    </ul>
-
-    <p v-if="mostrarResultados && query && !resultados.length && !cargando" class="sin-resultados">
-      Sin resultados
-    </p>
+    <Transition name="dropdown">
+      <ul v-if="mostrarResultados && resultados.length" class="resultados">
+        <li v-for="p in resultados" :key="p.id" @click="irAProducto(p)">
+          <span class="res-codigo">{{ p.codigo_completo }}</span>
+          <span class="res-nombre">{{ p.nombre_completo }}</span>
+          <span :class="['res-estado', p.estado]">
+            <span class="dot"></span>
+          </span>
+        </li>
+      </ul>
+      <div v-else-if="mostrarResultados && query && !resultados.length && !cargando" class="sin-resultados">
+        Sin resultados para "{{ query }}"
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -34,15 +40,11 @@ const resultados = ref([])
 const mostrarResultados = ref(false)
 const cargando = ref(false)
 const contenedor = ref(null)
-
 let timer = null
 
 function buscar() {
   clearTimeout(timer)
-  if (!query.value.trim()) {
-    resultados.value = []
-    return
-  }
+  if (!query.value.trim()) { resultados.value = []; return }
   timer = setTimeout(async () => {
     cargando.value = true
     try {
@@ -66,9 +68,7 @@ function cerrar() {
 }
 
 function clickFuera(e) {
-  if (contenedor.value && !contenedor.value.contains(e.target)) {
-    mostrarResultados.value = false
-  }
+  if (contenedor.value && !contenedor.value.contains(e.target)) mostrarResultados.value = false
 }
 
 onMounted(() => document.addEventListener('click', clickFuera))
@@ -76,89 +76,76 @@ onUnmounted(() => document.removeEventListener('click', clickFuera))
 </script>
 
 <style scoped>
-.buscador {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
+.buscador { position: relative; width: 100%; }
+
+.input-wrap { position: relative; display: flex; align-items: center; }
+
+.search-icon {
+  position: absolute; left: 0.625rem;
+  color: var(--ink-4); pointer-events: none; flex-shrink: 0;
 }
 
 input {
-  width: 100%;
-  padding: 0.4rem 0.75rem;
-  border-radius: 4px;
-  border: 1px solid #475569;
-  background: #334155;
-  color: white;
-  font-size: 0.9rem;
-  box-sizing: border-box;
+  width: 100%; padding: 0.4375rem 0.75rem 0.4375rem 2rem;
+  border: 1px solid var(--border-md); border-radius: var(--r-md);
+  background: var(--bg); color: var(--ink);
+  font-size: 0.8125rem; outline: none;
+  transition: border-color var(--t), background var(--t), box-shadow var(--t);
 }
 
-input::placeholder {
-  color: #94a3b8;
+input::placeholder { color: var(--ink-4); }
+
+input:focus {
+  border-color: var(--ink); background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(17,17,17,0.06);
 }
 
+/* Resultados */
 .resultados {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  z-index: 100;
-  max-height: 320px;
-  overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); list-style: none;
+  z-index: 100; max-height: 300px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 
 .resultados li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  cursor: pointer;
-  color: #1e293b;
-  font-size: 0.875rem;
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.625rem 0.875rem; cursor: pointer;
+  transition: background var(--t);
+  border-bottom: 1px solid var(--border);
+}
+.resultados li:last-child { border-bottom: none; }
+.resultados li:hover { background: var(--bg); }
+
+.res-codigo {
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500;
+  background: var(--ink); color: var(--accent-fg);
+  padding: 0.125rem 0.4375rem; border-radius: var(--r-sm);
+  letter-spacing: 0.04em; flex-shrink: 0;
 }
 
-.resultados li:hover {
-  background: #f1f5f9;
-}
+.res-nombre { flex: 1; font-size: 0.8125rem; color: var(--ink-2); }
 
-.codigo {
-  font-weight: bold;
-  min-width: 60px;
-}
-
-.nombre {
-  flex: 1;
-}
-
-.estado {
-  font-size: 0.75rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 3px;
-  text-transform: capitalize;
-}
-
-.estado.verde { background: #dcfce7; color: #166534; }
-.estado.amarillo { background: #fef9c3; color: #854d0e; }
-.estado.rojo { background: #fee2e2; color: #991b1b; }
+.res-estado { flex-shrink: 0; }
+.res-estado .dot { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.res-estado.verde .dot { background: var(--verde); }
+.res-estado.amarillo .dot { background: var(--amarillo); }
+.res-estado.rojo .dot { background: var(--rojo); }
 
 .sin-resultados {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 0.75rem;
-  color: #64748b;
-  font-size: 0.875rem;
-  text-align: center;
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 0.875rem;
+  color: var(--ink-3); font-size: 0.8125rem; text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+/* Transition */
+.dropdown-enter-active, .dropdown-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.dropdown-enter-from, .dropdown-leave-to {
+  opacity: 0; transform: translateY(-4px);
 }
 </style>
