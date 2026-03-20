@@ -36,14 +36,32 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         q = self.request.query_params.get('q')
         if q:
-            qs = (
-                qs.filter(subcategoria__nombre__icontains=q)
-                | qs.filter(subcategoria__categoria__nombre__icontains=q)
-                | qs.filter(medida_principal__valor__icontains=q)
-                | qs.filter(medida_secundaria__valor__icontains=q)
-                | qs.filter(codigos__codigo_uno__valor__icontains=q)
-                | qs.filter(codigos__codigo_dos__valor__icontains=q)
-            )
+            from django.db.models import Q
+            tokens = q.strip().split()
+            for token in tokens:
+                # Si el token tiene formato "XX-YY", buscar prefijo y sufijo juntos
+                if '-' in token:
+                    partes = token.split('-', 1)
+                    prefijo, sufijo = partes[0], partes[1]
+                    qs = qs.filter(
+                        Q(subcategoria__nombre__icontains=token)
+                        | Q(subcategoria__categoria__nombre__icontains=token)
+                        | Q(medida_principal__valor__icontains=token)
+                        | Q(medida_secundaria__valor__icontains=token)
+                        | Q(
+                            codigos__codigo_uno__valor__icontains=prefijo,
+                            codigos__codigo_dos__valor__icontains=sufijo,
+                        )
+                    )
+                else:
+                    qs = qs.filter(
+                        Q(subcategoria__nombre__icontains=token)
+                        | Q(subcategoria__categoria__nombre__icontains=token)
+                        | Q(medida_principal__valor__icontains=token)
+                        | Q(medida_secundaria__valor__icontains=token)
+                        | Q(codigos__codigo_uno__valor__icontains=token)
+                        | Q(codigos__codigo_dos__valor__icontains=token)
+                    )
 
         categoria_id = self.request.query_params.get('categoria_id')
         if categoria_id:
