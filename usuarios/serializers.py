@@ -12,7 +12,7 @@ class UsuarioRegistroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre', 'email', 'password', 'rol']
+        fields = ['id', 'nombre', 'username', 'email', 'password', 'rol']
 
     def create(self, validated_data):
         password = validated_data.pop('password')
