@@ -67,19 +67,24 @@
               'drag-over': dragOverId === p.id,
               'dragging': draggingId === p.id
             }"
-            :draggable="auth.esAdmin"
-            @dragstart="onDragStart(p)"
             @dragover.prevent="onDragOver(p)"
             @dragleave="dragOverId = null"
             @drop="onDrop(p)"
             @dragend="onDragEnd"
           >
             <td v-if="auth.esAdmin" class="col-drag">
-              <span class="drag-handle" title="Arrastrar para reordenar">
+              <span
+                class="drag-handle"
+                title="Arrastrar para reordenar"
+                draggable="true"
+                @dragstart.stop="onDragStart(p)"
+              >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
               </span>
             </td>
-            <td class="col-nombre">{{ p.nombre_completo }}</td>
+            <td class="col-nombre">
+              <RouterLink :to="`/productos/${p.id}`" class="nombre-link">{{ p.nombre_completo }}</RouterLink>
+            </td>
             <td class="col-codigo">
               <span v-for="c in p.codigos" :key="c.id" class="codigo-tag">
                 {{ c.codigo_completo }}
@@ -164,9 +169,9 @@ const errorEstado = ref('')
 let draggingProducto = null
 
 const estadoOpciones = [
-  { valor: 'verde', label: 'Verde' },
-  { valor: 'amarillo', label: 'Amarillo' },
-  { valor: 'rojo', label: 'Rojo' },
+  { valor: 'verde', label: 'Disponible' },
+  { valor: 'amarillo', label: 'Queda poco' },
+  { valor: 'rojo', label: 'Sin stock' },
 ]
 
 function toggleFiltroEstado(valor) {
@@ -196,7 +201,7 @@ async function guardarOrden() {
 
 async function cambiarEstado(producto, nuevoEstado) {
   if (producto.estado === nuevoEstado) return
-  if (!await showConfirm(`¿Cambiar estado de "${producto.nombre_completo}" a "${nuevoEstado}"?`, 'Cambiar estado')) return
+  if (!await showConfirm(`¿Cambiar estado de "${producto.nombre_completo}" a "${estadoOpciones.find(o => o.valor === nuevoEstado)?.label}"?`, 'Cambiar estado')) return
   try {
     await client.patch(`/productos/${producto.id}/cambiar-estado/`, { estado: nuevoEstado })
     producto.estado = nuevoEstado
@@ -470,6 +475,13 @@ select:focus { border-color: var(--ink); }
 .drag-handle:hover { color: var(--ink-2); }
 
 .col-nombre { color: var(--ink); font-weight: 400; }
+
+.nombre-link {
+  color: var(--ink);
+  text-decoration: none;
+  transition: color var(--t);
+}
+.nombre-link:hover { color: var(--ink-2); text-decoration: underline; }
 
 .col-codigo { width: 140px; }
 

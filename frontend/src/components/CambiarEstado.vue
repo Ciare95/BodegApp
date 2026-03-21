@@ -30,13 +30,13 @@ const error = ref('')
 const { showConfirm } = useConfirm()
 
 const opciones = [
-  { valor: 'verde', label: 'Verde' },
-  { valor: 'amarillo', label: 'Amarillo' },
-  { valor: 'rojo', label: 'Rojo' },
+  { valor: 'verde', label: 'Disponible' },
+  { valor: 'amarillo', label: 'Queda poco' },
+  { valor: 'rojo', label: 'Sin stock' },
 ]
 
 async function confirmar(nuevoEstado) {
-  if (!await showConfirm(`¿Cambiar estado a "${nuevoEstado}"?`, 'Cambiar estado')) return
+  if (!await showConfirm(`¿Cambiar estado a "${opciones.find(o => o.valor === nuevoEstado)?.label}"?`, 'Cambiar estado')) return
   error.value = ''
   guardando.value = true
   try {

@@ -74,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import client from '@/api/client'
@@ -110,10 +110,11 @@ function formatFecha(fecha) {
 }
 
 onMounted(cargar)
+watch(() => route.params.id, cargar)
 </script>
 
 <style scoped>
-.detalle-page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 860px; }
+.detalle-page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 860px; margin: 0 auto; width: 100%; }
 
 .back-link {
   display: inline-flex; align-items: center; gap: 0.375rem;
