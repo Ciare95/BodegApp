@@ -1,4 +1,0 @@
-# file: C:\laragon\www\BodegApp\usuarios\tests.py
-# hypothesis_version: 6.151.9
-
-[100, 400, '-', '/api/categorias/', '/api/productos/', '/api/token/', '/api/usuarios/', '/api/usuarios/me/', 'Admin', 'Intruso', 'NUEVA', 'Nuevo Empleado', 'Primero', 'Segundo', 'Test', '_', 'a', 'abc', 'admin', 'email', 'empleado', 'hash', 'hash1', 'hash_admin', 'intruso@bodegapp.com', 'invalido@test.com', 'largo@bodegapp.com', 'nombre', 'nuevo@bodegapp.com', 'nuevo_empleado', 'pass1234', 'password', 'rol', 'segura1234', 'test@bodegapp.com', 'test_user', 'username']
