@@ -1,0 +1,4 @@
+# file: C:\laragon\www\BodegApp\usuarios\models.py
+# hypothesis_version: 6.151.9
+
+[150, 255, 'Admin', 'Empleado', '^[a-zA-Z0-9_-]+$', 'admin', 'empleado']
