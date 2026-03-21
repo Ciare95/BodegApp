@@ -1,4 +1,0 @@
-# file: C:\laragon\www\BodegApp\productos\migrations\0001_initial.py
-# hypothesis_version: 6.151.9
-
-[255, '-fecha', '0001_initial', 'Amarillo', 'Historial', 'ID', 'Producto', 'Rojo', 'Verde', 'actualizado_en', 'actualizado_por', 'amarillo', 'campo_modificado', 'categorias', 'categorias.codigodos', 'categorias.codigouno', 'codigo_dos', 'codigo_uno', 'creado_en', 'estado', 'fecha', 'historial', 'id', 'medida_principal', 'medida_secundaria', 'ordering', 'producto', 'productos', 'productos.producto', 'rojo', 'subcategoria', 'unique_together', 'usuario', 'usuarios', 'usuarios.usuario', 'valor_anterior', 'valor_nuevo', 'verde']
