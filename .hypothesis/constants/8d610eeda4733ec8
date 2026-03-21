@@ -1,0 +1,4 @@
+# file: C:\laragon\www\BodegApp\conftest.py
+# hypothesis_version: 6.151.9
+
+['1/4', '3/4', '40', 'Admin Test', 'EB', 'Empleado Test', 'TORNILLO GRADO 5', 'TORNILLOS', 'admin', 'admin@bodegapp.com', 'admin_test', 'empleado', 'empleado_test', 'hashed_admin_pass', 'hashed_empleado_pass', 'verde']
