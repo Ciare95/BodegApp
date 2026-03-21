@@ -18,6 +18,8 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class SubcategoriaSerializer(serializers.ModelSerializer):
     # Lectura: muestra el objeto categoria anidado
     categoria = CategoriaSerializer(read_only=True)
+    # Campo plano para mostrar en tablas
+    categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
     # Escritura: acepta el id de la categoria
     categoria_id = serializers.PrimaryKeyRelatedField(
         queryset=Categoria.objects.all(),
@@ -27,7 +29,7 @@ class SubcategoriaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subcategoria
-        fields = ['id', 'categoria', 'categoria_id', 'nombre']
+        fields = ['id', 'categoria', 'categoria_nombre', 'categoria_id', 'nombre']
 
 
 class MedidaPrincipalSerializer(serializers.ModelSerializer):

@@ -16,6 +16,7 @@ from categorias.models import (
 def admin(db):
     return Usuario.objects.create(
         nombre='Admin Test',
+        username='admin_test',
         email='admin@bodegapp.com',
         password_hash='hashed_admin_pass',
         rol='admin',
@@ -26,6 +27,7 @@ def admin(db):
 def empleado(db):
     return Usuario.objects.create(
         nombre='Empleado Test',
+        username='empleado_test',
         email='empleado@bodegapp.com',
         password_hash='hashed_empleado_pass',
         rol='empleado',
