@@ -61,7 +61,7 @@
     <!-- Modal nuevo -->
     <Transition name="modal">
       <div v-if="mostrarModal" class="overlay" @click.self="mostrarModal = false">
-        <div class="modal">
+        <div class="modal" @keydown.enter.prevent="crear">
           <div class="modal-header">
             <h2>Agregar {{ label }}</h2>
             <button class="btn-close" @click="mostrarModal = false">
@@ -85,10 +85,10 @@
             <div class="field">
               <label>{{ label }}</label>
               <input
+                ref="nuevoInputRef"
                 v-model="nuevoValor"
                 :placeholder="`Valor de ${label}...`"
                 @input="nuevoValor = nuevoValor.toUpperCase()"
-                @keydown.enter="crear"
               />
             </div>
 
@@ -128,6 +128,7 @@ const editInputRef = ref(null)
 const mostrarModal = ref(false)
 const nuevoValor = ref('')
 const nuevoExtra = ref({})
+const nuevoInputRef = ref(null)
 const error = ref('')
 const errorModal = ref('')
 const { showConfirm } = useConfirm()
@@ -192,6 +193,9 @@ async function crear() {
 
 onMounted(cargar)
 watch(() => props.endpoint, cargar)
+watch(mostrarModal, (val) => {
+  if (val) nextTick(() => nuevoInputRef.value?.focus())
+})
 </script>
 
 <style scoped>
