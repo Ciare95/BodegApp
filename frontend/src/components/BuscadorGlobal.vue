@@ -3,18 +3,28 @@
     <div class="input-wrap">
       <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input
+        ref="inputRef"
         v-model="query"
         type="search"
         placeholder="Buscar por nombre o código..."
         @input="buscar"
         @focus="mostrarResultados = true"
         @keydown.escape="cerrar"
+        @keydown.down.prevent="moverSeleccion(1)"
+        @keydown.up.prevent="moverSeleccion(-1)"
+        @keydown.enter.prevent="confirmarSeleccion"
       />
     </div>
 
     <Transition name="dropdown">
       <ul v-if="mostrarResultados && resultados.length" class="resultados">
-        <li v-for="p in resultados" :key="p.id" @click="irAProducto(p)">
+        <li
+          v-for="(p, i) in resultados"
+          :key="p.id"
+          :class="{ activo: i === indiceActivo }"
+          @click="irAProducto(p)"
+          @mouseenter="indiceActivo = i"
+        >
           <span class="res-codigo">{{ p.codigo_completo }}</span>
           <span class="res-nombre">{{ p.nombre_completo }}</span>
           <span :class="['res-estado', p.estado]">
@@ -40,10 +50,13 @@ const resultados = ref([])
 const mostrarResultados = ref(false)
 const cargando = ref(false)
 const contenedor = ref(null)
+const inputRef = ref(null)
+const indiceActivo = ref(-1)
 let timer = null
 
 function buscar() {
   clearTimeout(timer)
+  indiceActivo.value = -1
   if (!query.value.trim()) { resultados.value = []; return }
   timer = setTimeout(async () => {
     cargando.value = true
@@ -54,6 +67,20 @@ function buscar() {
       cargando.value = false
     }
   }, 300)
+}
+
+function moverSeleccion(dir) {
+  if (!resultados.value.length) return
+  const total = resultados.value.length
+  indiceActivo.value = (indiceActivo.value + dir + total) % total
+}
+
+function confirmarSeleccion() {
+  if (indiceActivo.value >= 0 && resultados.value[indiceActivo.value]) {
+    irAProducto(resultados.value[indiceActivo.value])
+  } else if (resultados.value.length === 1) {
+    irAProducto(resultados.value[0])
+  }
 }
 
 function irAProducto(producto) {
@@ -71,7 +98,10 @@ function clickFuera(e) {
   if (contenedor.value && !contenedor.value.contains(e.target)) mostrarResultados.value = false
 }
 
-onMounted(() => document.addEventListener('click', clickFuera))
+onMounted(() => {
+  document.addEventListener('click', clickFuera)
+  inputRef.value?.focus()
+})
 onUnmounted(() => document.removeEventListener('click', clickFuera))
 </script>
 
@@ -116,7 +146,7 @@ input:focus {
   border-bottom: 1px solid var(--border);
 }
 .resultados li:last-child { border-bottom: none; }
-.resultados li:hover { background: var(--bg); }
+.resultados li:hover, .resultados li.activo { background: var(--border); }
 
 .res-codigo {
   font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500;
