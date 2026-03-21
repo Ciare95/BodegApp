@@ -67,6 +67,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if categoria_id:
             qs = qs.filter(subcategoria__categoria_id=categoria_id)
 
+        subcategoria_id = self.request.query_params.get('subcategoria_id')
+        if subcategoria_id:
+            qs = qs.filter(subcategoria_id=subcategoria_id)
+
         estado = self.request.query_params.get('estado')
         if estado:
             qs = qs.filter(estado=estado)

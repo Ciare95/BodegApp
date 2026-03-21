@@ -6,11 +6,6 @@
         <span class="brand-name">BodegApp</span>
       </RouterLink>
 
-      <div class="navbar-search">
-        <BuscadorGlobal />
-      </div>
-
-      <!-- Desktop menu -->
       <div class="navbar-menu">
         <RouterLink to="/productos" class="nav-link">Productos</RouterLink>
         <RouterLink v-if="auth.esAdmin" to="/catalogos" class="nav-link">Catálogos</RouterLink>
@@ -66,7 +61,6 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import BuscadorGlobal from '@/components/BuscadorGlobal.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -118,10 +112,7 @@ async function cerrarSesion() {
   color: var(--ink);
 }
 
-.navbar-search {
-  flex: 1;
-  max-width: 420px;
-}
+.navbar-search { display: none; }
 
 /* Desktop menu */
 .navbar-menu {
