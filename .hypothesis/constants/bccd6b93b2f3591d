@@ -1,4 +1,0 @@
-# file: C:\laragon\www\BodegApp\productos\migrations\0002_codigo_unico_global.py
-# hypothesis_version: 6.151.9
-
-['0001_initial', 'categorias', 'codigo_dos', 'codigo_uno', 'medida_principal', 'medida_secundaria', 'producto', 'productos', 'subcategoria']
