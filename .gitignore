@@ -1,7 +1,18 @@
+# Python
 venv/
 __pycache__/
 *.pyc
-db.sqlite3
+*.pyo
+
+# Node
+node_modules/
+dist/
+build/
+
+# Entorno
 .env
-*.log
-.DS_Store
+
+# VSCode
+.vscode/
+
+db.sqlite3
