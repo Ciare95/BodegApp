@@ -11,8 +11,8 @@ build/
 
 # Entorno
 .env
+*.log
+.DS_Store
+__pycache__/
+*.pyc
 
-# VSCode
-.vscode/
-
-db.sqlite3

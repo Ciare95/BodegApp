@@ -1,3 +1,5 @@
 from django.contrib import admin
+from productos.models import Producto, Historial
 
-# Register your models here.
+admin.site.register(Producto)
+admin.site.register(Historial)

@@ -1,0 +1,4 @@
+# file: C:\laragon\www\BodegApp\config\settings.py
+# hypothesis_version: 6.151.9
+
+['APP_DIRS', 'America/Bogota', 'BACKEND', 'DIRS', 'ENGINE', 'NAME', 'OPTIONS', 'categorias', 'config.urls', 'context_processors', 'corsheaders', 'db.sqlite3', 'default', 'django.contrib.admin', 'django.contrib.auth', 'es-co', 'productos', 'qr', 'rest_framework', 'static/', 'usuarios']
