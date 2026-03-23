@@ -6,3 +6,7 @@ start "Backend" cmd /k ""%BASE%\venv\Scripts\activate" && python "%BASE%\manage.
 
 :: Frontend
 start "Frontend" cmd /k "cd /d "%BASE%\frontend" && npm run preview"
+
+:: Esperar 5 segundos y abrir Chrome
+timeout /t 5 /nobreak >nul
+start chrome http://localhost
