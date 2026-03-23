@@ -242,7 +242,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.form-page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 640px; }
+.form-page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 640px; margin: 0 auto; width: 100%; }
 
 .back-link {
   display: inline-flex; align-items: center; gap: 0.375rem;

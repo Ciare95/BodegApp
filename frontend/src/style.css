@@ -2,7 +2,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Palette */
+  /* Palette — light */
   --bg:        #FAFAF8;
   --surface:   #FFFFFF;
   --border:    #E5E5E0;
@@ -40,6 +40,31 @@
   --t: 150ms ease;
 }
 
+/* ─── Dark mode ─────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:        #0F0F0E;
+  --surface:   #1A1A18;
+  --border:    #2A2A27;
+  --border-md: #3A3A36;
+  --ink:       #EEEEE8;
+  --ink-2:     #AAAAAA;
+  --ink-3:     #666660;
+  --ink-4:     #444440;
+
+  --accent:    #EEEEE8;
+  --accent-fg: #0F0F0E;
+
+  --verde:     #4ADE80;
+  --verde-bg:  #052E16;
+  --verde-bd:  #14532D;
+  --amarillo:  #FCD34D;
+  --amarillo-bg: #1C1400;
+  --amarillo-bd: #3D2E00;
+  --rojo:      #F87171;
+  --rojo-bg:   #1C0000;
+  --rojo-bd:   #3D0000;
+}
+
 html { font-size: 15px; }
 
 body {
@@ -48,6 +73,7 @@ body {
   color: var(--ink);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background var(--t), color var(--t);
 }
 
 a { color: inherit; text-decoration: none; }

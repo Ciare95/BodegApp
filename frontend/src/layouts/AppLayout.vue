@@ -11,6 +11,20 @@
         <RouterLink v-if="auth.esAdmin" to="/catalogos" class="nav-link">Catálogos</RouterLink>
         <RouterLink v-if="auth.esAdmin" to="/usuarios" class="nav-link">Usuarios</RouterLink>
         <div class="nav-divider"></div>
+        <button class="btn-theme" @click="theme.toggle()" :title="theme.dark ? 'Modo claro' : 'Modo oscuro'">
+          <!-- Sol -->
+          <svg v-if="theme.dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+            <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+          </svg>
+          <!-- Luna -->
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <div class="nav-divider"></div>
         <button class="btn-logout" @click="cerrarSesion" title="Cerrar sesión">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -60,9 +74,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
 import { useRouter } from 'vue-router'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const router = useRouter()
 const menuAbierto = ref(false)
 
@@ -137,6 +153,21 @@ async function cerrarSesion() {
 .nav-link.router-link-active { color: var(--ink); font-weight: 500; background: var(--bg); }
 
 .nav-divider { width: 1px; height: 20px; background: var(--border); margin: 0 0.5rem; }
+
+.btn-theme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  border-radius: var(--r-md);
+  transition: color var(--t), background var(--t);
+  flex-shrink: 0;
+}
+.btn-theme:hover { color: var(--ink); background: var(--bg); }
 
 .btn-logout {
   display: flex;
