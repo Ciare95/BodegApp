@@ -1,9 +1,9 @@
 <template>
   <div class="form-page">
-    <RouterLink to="/productos" class="back-link">
+    <button class="back-link" @click="volver">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      Productos
-    </RouterLink>
+      {{ volverLabel }}
+    </button>
 
     <div class="form-header">
       <h1>{{ esEdicion ? 'Editar producto' : 'Nuevo producto' }}</h1>
@@ -19,7 +19,8 @@
         <div class="fields-grid">
           <div class="field">
             <label>Categoría</label>
-            <div class="select-wrap">
+            <div v-if="contextoFijo" class="valor-fijo">{{ nombreCategoriaFija }}</div>
+            <div v-else class="select-wrap">
               <select v-model="categoriaId" @change="onCategoriaChange">
                 <option value="">Seleccionar...</option>
                 <option v-for="c in catalogos.categorias" :key="c.id" :value="c.id">{{ c.nombre }}</option>
@@ -28,7 +29,8 @@
           </div>
           <div class="field">
             <label>Subcategoría <span class="req">*</span></label>
-            <div class="select-wrap">
+            <div v-if="contextoFijo" class="valor-fijo">{{ nombreSubcategoriaFija }}</div>
+            <div v-else class="select-wrap">
               <select v-model="form.subcategoria" required>
                 <option value="">Seleccionar...</option>
                 <option v-for="s in subcategoriasFiltradas" :key="s.id" :value="s.id">{{ s.nombre }}</option>
@@ -63,39 +65,31 @@
       </div>
 
       <div class="form-section">
-        <div class="section-header-row">
-          <h2 class="section-title">Códigos <span class="req">*</span></h2>
-          <button type="button" class="btn-add-code" @click="agregarFilaCodigo">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Añadir código
-          </button>
-        </div>
-        <div class="codigos-list">
-          <div v-for="(cod, idx) in form.codigos" :key="idx" class="codigo-row">
-            <div class="select-wrap">
-              <select v-model="cod.codigo_uno" required>
-                <option value="">Prefijo...</option>
-                <option v-for="c in catalogos.codigos_uno" :key="c.id" :value="c.id">{{ c.valor }}</option>
-              </select>
-            </div>
-            <span class="sep">—</span>
-            <div class="select-wrap">
-              <select v-model="cod.codigo_dos" required>
-                <option value="">Sufijo...</option>
-                <option v-for="c in catalogos.codigos_dos" :key="c.id" :value="c.id">{{ c.valor }}</option>
-              </select>
-            </div>
-            <span v-if="previewCodigo(cod)" class="codigo-preview-tag">{{ previewCodigo(cod) }}</span>
-            <button
-              v-if="form.codigos.length > 1"
-              type="button"
-              class="btn-remove-code"
-              @click="quitarFilaCodigo(idx)"
-              title="Quitar"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <h2 class="section-title">Código</h2>
+        <div class="codigo-row">
+          <div class="select-wrap">
+            <select v-model="form.codigo_uno">
+              <option value="">Prefijo...</option>
+              <option v-for="c in catalogos.codigos_uno" :key="c.id" :value="c.id">{{ c.valor }}</option>
+            </select>
           </div>
+          <span class="sep">—</span>
+          <div class="select-wrap">
+            <select v-model="form.codigo_dos">
+              <option value="">Sufijo...</option>
+              <option v-for="c in catalogos.codigos_dos" :key="c.id" :value="c.id">{{ c.valor }}</option>
+            </select>
+          </div>
+          <span v-if="previewCodigo" class="codigo-preview-tag">{{ previewCodigo }}</span>
+          <button
+            v-if="form.codigo_uno || form.codigo_dos"
+            type="button"
+            class="btn-clear-code"
+            title="Quitar código"
+            @click="limpiarCodigo"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
 
@@ -120,7 +114,7 @@
       </div>
 
       <div class="form-footer">
-        <RouterLink to="/productos" class="btn-cancel">Cancelar</RouterLink>
+        <button type="button" class="btn-cancel" @click="volver">Cancelar</button>
         <button type="submit" class="btn-save" :disabled="guardando">
           <span v-if="guardando" class="spinner"></span>
           {{ guardando ? 'Guardando...' : 'Guardar producto' }}
@@ -139,9 +133,14 @@ const route = useRoute()
 const router = useRouter()
 const esEdicion = computed(() => !!route.params.id)
 
+// Query params de contexto (vienen de ProductosView)
+const qCatId = Number(route.query.categoria_id) || null
+const qSubId = Number(route.query.subcategoria_id) || null
+const contextoFijo = computed(() => !esEdicion.value && !!qCatId && !!qSubId)
+
 const form = reactive({
   subcategoria: '', medida_principal: '', medida_secundaria: '',
-  estado: 'verde', codigos: [{ codigo_uno: '', codigo_dos: '' }],
+  estado: 'verde', codigo_uno: '', codigo_dos: '',
 })
 
 const catalogos = reactive({
@@ -164,6 +163,25 @@ const subcategoriasFiltradas = computed(() => {
   return catalogos.subcategorias.filter(s => s.categoria?.id === Number(categoriaId.value))
 })
 
+const nombreCategoriaFija = computed(() =>
+  catalogos.categorias.find(c => c.id === qCatId)?.nombre ?? ''
+)
+const nombreSubcategoriaFija = computed(() =>
+  catalogos.subcategorias.find(s => s.id === qSubId)?.nombre ?? ''
+)
+
+const volverLabel = computed(() => {
+  if (qSubId) return nombreSubcategoriaFija.value || 'Volver'
+  return 'Productos'
+})
+
+function volver() {
+  const destino = (qCatId && qSubId)
+    ? { name: 'productos', query: { categoria_id: qCatId, subcategoria_id: qSubId } }
+    : { name: 'productos' }
+  router.push(destino)
+}
+
 const previewNombre = computed(() => {
   const sub = catalogos.subcategorias.find(s => s.id === Number(form.subcategoria))
   const mp = catalogos.medidas_principales.find(m => m.id === Number(form.medida_principal))
@@ -172,15 +190,14 @@ const previewNombre = computed(() => {
   return `${sub.categoria?.nombre ?? ''} ${sub.nombre} ${mp.valor}${ms ? ' X ' + ms.valor : ''}`.trim()
 })
 
-function previewCodigo(cod) {
-  const c1 = catalogos.codigos_uno.find(c => c.id === Number(cod.codigo_uno))
-  const c2 = catalogos.codigos_dos.find(c => c.id === Number(cod.codigo_dos))
+const previewCodigo = computed(() => {
+  const c1 = catalogos.codigos_uno.find(c => c.id === Number(form.codigo_uno))
+  const c2 = catalogos.codigos_dos.find(c => c.id === Number(form.codigo_dos))
   return c1 && c2 ? `${c1.valor}-${c2.valor}` : ''
-}
+})
 
-function agregarFilaCodigo() { form.codigos.push({ codigo_uno: '', codigo_dos: '' }) }
-function quitarFilaCodigo(idx) { form.codigos.splice(idx, 1) }
 function onCategoriaChange() { form.subcategoria = '' }
+function limpiarCodigo() { form.codigo_uno = ''; form.codigo_dos = '' }
 
 async function cargarCatalogos() {
   const endpoints = [
@@ -200,36 +217,39 @@ async function cargarProducto() {
   form.medida_principal = data.medida_principal
   form.medida_secundaria = data.medida_secundaria ?? ''
   form.estado = data.estado
-  form.codigos = data.codigos?.length
-    ? data.codigos.map(c => ({ codigo_uno: c.codigo_uno, codigo_dos: c.codigo_dos }))
-    : [{ codigo_uno: '', codigo_dos: '' }]
+  form.codigo_uno = data.codigo_uno ?? ''
+  form.codigo_dos = data.codigo_dos ?? ''
   if (data.subcategoria_detalle) categoriaId.value = data.subcategoria_detalle.categoria_id
 }
 
 async function guardar() {
   error.value = ''
-  for (const cod of form.codigos) {
-    if (!cod.codigo_uno || !cod.codigo_dos) {
-      error.value = 'Completa todos los campos de código antes de guardar.'
-      return
-    }
-  }
   guardando.value = true
   try {
     const payload = {
       subcategoria: form.subcategoria, medida_principal: form.medida_principal,
       medida_secundaria: form.medida_secundaria || null, estado: form.estado,
-      codigos: form.codigos.map(c => ({ codigo_uno: c.codigo_uno, codigo_dos: c.codigo_dos })),
+      codigo_uno: form.codigo_uno || null,
+      codigo_dos: form.codigo_dos || null,
     }
     if (esEdicion.value) {
       await client.put(`/productos/${route.params.id}/`, payload)
     } else {
       await client.post('/productos/', payload)
     }
-    router.push('/productos')
+    volver()
   } catch (e) {
     const d = e.response?.data
-    error.value = d?.detail ?? (typeof d === 'string' ? d : JSON.stringify(d)) ?? 'Error al guardar'
+    if (d?.detail) {
+      error.value = d.detail
+    } else if (d?.non_field_errors) {
+      error.value = d.non_field_errors[0]
+    } else if (typeof d === 'object' && d !== null) {
+      const msgs = Object.values(d).flat()
+      error.value = msgs[0] ?? 'Error al guardar'
+    } else {
+      error.value = 'Error al guardar'
+    }
   } finally {
     guardando.value = false
   }
@@ -237,7 +257,13 @@ async function guardar() {
 
 onMounted(async () => {
   await cargarCatalogos()
-  if (esEdicion.value) await cargarProducto()
+  if (esEdicion.value) {
+    await cargarProducto()
+  } else if (contextoFijo.value) {
+    // Preseleccionar categoría y subcategoría desde query params
+    categoriaId.value = qCatId
+    form.subcategoria = qSubId
+  }
 })
 </script>
 
@@ -246,8 +272,9 @@ onMounted(async () => {
 
 .back-link {
   display: inline-flex; align-items: center; gap: 0.375rem;
-  font-size: 0.8125rem; color: var(--ink-3); text-decoration: none;
-  transition: color var(--t);
+  font-size: 0.8125rem; color: var(--ink-3);
+  background: none; border: none; cursor: pointer;
+  text-decoration: none; transition: color var(--t); padding: 0;
 }
 .back-link:hover { color: var(--ink); }
 
@@ -299,6 +326,13 @@ h1 {
 
 .req { color: var(--rojo); }
 
+.valor-fijo {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  font-size: 0.9375rem; color: var(--ink);
+  background: var(--bg); font-weight: 500;
+}
+
 .fields-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
 }
@@ -328,9 +362,7 @@ select {
 }
 select:focus { border-color: var(--ink); }
 
-/* Códigos */
-.codigos-list { display: flex; flex-direction: column; gap: 0.5rem; }
-
+/* Código */
 .codigo-row {
   display: flex; align-items: center; gap: 0.5rem;
 }
@@ -345,23 +377,14 @@ select:focus { border-color: var(--ink); }
   letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0;
 }
 
-.btn-add-code {
-  display: inline-flex; align-items: center; gap: 0.3125rem;
-  padding: 0.3125rem 0.625rem; font-size: 0.75rem; font-weight: 500;
-  color: var(--ink-2); background: var(--bg);
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-  transition: all var(--t);
-}
-.btn-add-code:hover { color: var(--ink); border-color: var(--ink); }
-
-.btn-remove-code {
+.btn-clear-code {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; flex-shrink: 0;
   color: var(--ink-4); background: none;
   border: 1px solid transparent; border-radius: var(--r-sm);
   transition: all var(--t);
 }
-.btn-remove-code:hover { color: var(--rojo); background: var(--rojo-bg); border-color: var(--rojo-bd); }
+.btn-clear-code:hover { color: var(--rojo); background: var(--rojo-bg); border-color: var(--rojo-bd); }
 
 /* Estado */
 .estado-options { display: flex; gap: 0.5rem; }

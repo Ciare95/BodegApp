@@ -1,26 +1,5 @@
 from rest_framework import serializers
-from productos.models import Producto, ProductoCodigo, Historial
-
-
-class ProductoCodigoSerializer(serializers.ModelSerializer):
-    codigo_uno_valor = serializers.CharField(source='codigo_uno.valor', read_only=True)
-    codigo_dos_valor = serializers.CharField(source='codigo_dos.valor', read_only=True)
-    codigo_completo = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ProductoCodigo
-        fields = ['id', 'codigo_uno', 'codigo_dos', 'codigo_uno_valor', 'codigo_dos_valor', 'codigo_completo']
-
-    def get_codigo_completo(self, obj):
-        return f"{obj.codigo_uno.valor}-{obj.codigo_dos.valor}"
-
-
-class ProductoCodigoWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductoCodigo
-        fields = ['codigo_uno', 'codigo_dos']
-        # La validación de unicidad la maneja el service (excluye los del propio producto)
-        validators = []
+from productos.models import Producto, Historial
 
 
 class HistorialSerializer(serializers.ModelSerializer):
@@ -34,7 +13,8 @@ class ProductoSerializer(serializers.ModelSerializer):
     """Serializer de lectura para Producto."""
     nombre_completo = serializers.SerializerMethodField()
     codigo_completo = serializers.SerializerMethodField()
-    codigos = ProductoCodigoSerializer(many=True, read_only=True)
+    codigo_uno_valor = serializers.SerializerMethodField()
+    codigo_dos_valor = serializers.SerializerMethodField()
 
     subcategoria_detalle = serializers.SerializerMethodField()
     medida_principal_detalle = serializers.SerializerMethodField()
@@ -48,13 +28,16 @@ class ProductoSerializer(serializers.ModelSerializer):
             'subcategoria',
             'medida_principal',
             'medida_secundaria',
+            'codigo_uno',
+            'codigo_dos',
             'estado',
             'orden',
             'creado_en',
             'actualizado_en',
             'nombre_completo',
             'codigo_completo',
-            'codigos',
+            'codigo_uno_valor',
+            'codigo_dos_valor',
             'subcategoria_detalle',
             'medida_principal_detalle',
             'medida_secundaria_detalle',
@@ -67,6 +50,12 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     def get_codigo_completo(self, obj):
         return obj.codigo_completo
+
+    def get_codigo_uno_valor(self, obj):
+        return obj.codigo_uno.valor if obj.codigo_uno_id else None
+
+    def get_codigo_dos_valor(self, obj):
+        return obj.codigo_dos.valor if obj.codigo_dos_id else None
 
     def get_subcategoria_detalle(self, obj):
         return {
@@ -89,9 +78,15 @@ class ProductoSerializer(serializers.ModelSerializer):
 
 
 class ProductoWriteSerializer(serializers.ModelSerializer):
-    """Serializer de escritura. Los códigos se manejan por separado."""
-    codigos = ProductoCodigoWriteSerializer(many=True, required=False)
-
     class Meta:
         model = Producto
-        fields = ['subcategoria', 'medida_principal', 'medida_secundaria', 'estado', 'codigos']
+        fields = ['subcategoria', 'medida_principal', 'medida_secundaria', 'codigo_uno', 'codigo_dos', 'estado']
+
+    def validate(self, data):
+        tiene_uno = data.get('codigo_uno') is not None
+        tiene_dos = data.get('codigo_dos') is not None
+        if tiene_uno != tiene_dos:
+            raise serializers.ValidationError(
+                'El prefijo y el sufijo del código deben completarse juntos o dejarse ambos vacíos.'
+            )
+        return data
