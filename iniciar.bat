@@ -2,12 +2,11 @@
 set "BASE=%~dp0"
 if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
 
-:: Lanzar backend oculto
-set "CMD_BACK="%BASE%\venv\Scripts\activate" && python "%BASE%\manage.py" runserver 0.0.0.0:8000"
-powershell -WindowStyle Hidden -Command "Start-Process cmd -ArgumentList '/c %BASE%\venv\Scripts\activate && python %BASE%\manage.py runserver 0.0.0.0:8000' -WindowStyle Hidden"
+:: Backend — usa el python del venv directamente, sin activar
+start "" /min cmd /c ""%BASE%\venv\Scripts\python.exe" "%BASE%\manage.py" runserver 0.0.0.0:8000"
 
-:: Lanzar frontend oculto
-powershell -WindowStyle Hidden -Command "Start-Process cmd -ArgumentList '/c cd /d %BASE%\frontend && npm run build && npm run preview' -WindowStyle Hidden"
+:: Frontend
+start "" /min cmd /c "cd /d "%BASE%\frontend" && npm run build && npm run preview"
 
 :: Esperar y abrir Chrome
 timeout /t 15 /nobreak >nul
