@@ -1,14 +1,14 @@
 @echo off
 set "BASE=%~dp0"
-:: Quitar la barra final si existe
 if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
 
-:: Backend
-start "Backend" cmd /k ""%BASE%\venv\Scripts\activate" && python "%BASE%\manage.py" runserver 0.0.0.0:8000"
+:: Lanzar backend oculto
+set "CMD_BACK="%BASE%\venv\Scripts\activate" && python "%BASE%\manage.py" runserver 0.0.0.0:8000"
+powershell -WindowStyle Hidden -Command "Start-Process cmd -ArgumentList '/c %BASE%\venv\Scripts\activate && python %BASE%\manage.py runserver 0.0.0.0:8000' -WindowStyle Hidden"
 
-:: Frontend
-start "Frontend" cmd /k "cd /d "%BASE%\frontend" && npm run preview"
+:: Lanzar frontend oculto
+powershell -WindowStyle Hidden -Command "Start-Process cmd -ArgumentList '/c cd /d %BASE%\frontend && npm run build && npm run preview' -WindowStyle Hidden"
 
-:: Esperar 5 segundos y abrir Chrome
-timeout /t 5 /nobreak >nul
+:: Esperar y abrir Chrome
+timeout /t 15 /nobreak >nul
 start chrome http://localhost
