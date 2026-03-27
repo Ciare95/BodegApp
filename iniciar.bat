@@ -1,5 +1,7 @@
 @echo off
-set "BASE=C:\Users\WIN 10\BodegApp"
+set "BASE=%~dp0"
+:: Quitar la barra final si existe
+if "%BASE:~-1%"=="\" set "BASE=%BASE:~0,-1%"
 
 :: Backend
 start "Backend" cmd /k ""%BASE%\venv\Scripts\activate" && python "%BASE%\manage.py" runserver 0.0.0.0:8000"
