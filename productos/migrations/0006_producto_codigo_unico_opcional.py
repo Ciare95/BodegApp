@@ -4,14 +4,16 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     """
-    La migración 0005 fue registrada como aplicada pero la DB quedó en el estado
-    original: codigo_uno_id y codigo_dos_id siguen en productos_producto y la tabla
-    productos_productoCodigo nunca fue creada.
+    Migración robusta que maneja dos estados posibles de la DB:
 
-    Esta migración sincroniza el estado de Django con la realidad de la DB:
-    - Las columnas ya existen → se declaran con SeparateDatabaseAndState (no-op en DB)
-    - ProductoCodigo nunca existió → se elimina solo del estado de Django
-    - Se ajusta unique_together al nuevo diseño
+    Caso A (dev): La 0005 fue marcada como aplicada pero no ejecutó —
+    las columnas codigo_uno_id/codigo_dos_id ya existen en productos_producto
+    y la tabla productos_producto_codigo nunca fue creada.
+
+    Caso B (producción): La 0005 se ejecutó correctamente — las columnas
+    fueron eliminadas de productos_producto y existe productos_producto_codigo.
+
+    El SQL usa DO $$ ... $$ para detectar el estado real y actuar en consecuencia.
     """
 
     dependencies = [
@@ -20,18 +22,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # 1. Sincronizar estado interno de Django (sin tocar la DB)
         migrations.SeparateDatabaseAndState(
-            # Las columnas ya existen en la DB → no ejecutar nada
             database_operations=[],
-            # Actualizar el estado de Django para que refleje la realidad
             state_operations=[
-                # 1. Agregar codigo_uno y codigo_dos al estado del modelo Producto
                 migrations.AddField(
                     model_name='producto',
                     name='codigo_uno',
                     field=models.ForeignKey(
-                        blank=True,
-                        null=True,
+                        blank=True, null=True,
                         on_delete=django.db.models.deletion.PROTECT,
                         related_name='productos',
                         to='categorias.codigouno',
@@ -41,19 +40,67 @@ class Migration(migrations.Migration):
                     model_name='producto',
                     name='codigo_dos',
                     field=models.ForeignKey(
-                        blank=True,
-                        null=True,
+                        blank=True, null=True,
                         on_delete=django.db.models.deletion.PROTECT,
                         related_name='productos',
                         to='categorias.codigodos',
                     ),
                 ),
-                # 2. Eliminar ProductoCodigo del estado (nunca existió en la DB)
                 migrations.DeleteModel(name='ProductoCodigo'),
             ],
         ),
 
-        # 3. Actualizar unique_together (sí ejecuta en DB)
+        # 2. Agregar columnas en DB solo si no existen (Caso B: 0005 se ejecutó bien)
+        migrations.RunSQL(
+            sql="""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'productos_producto'
+                          AND column_name = 'codigo_uno_id'
+                    ) THEN
+                        ALTER TABLE productos_producto
+                            ADD COLUMN codigo_uno_id integer
+                                REFERENCES categorias_codigouno(id)
+                                DEFERRABLE INITIALLY DEFERRED,
+                            ADD COLUMN codigo_dos_id integer
+                                REFERENCES categorias_codigodos(id)
+                                DEFERRABLE INITIALLY DEFERRED;
+                    END IF;
+                END $$;
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+
+        # 3. Migrar datos y eliminar tabla intermedia si existe (Caso B)
+        migrations.RunSQL(
+            sql="""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_name = 'productos_producto_codigo'
+                    ) THEN
+                        UPDATE productos_producto p
+                        SET codigo_uno_id = pc.codigo_uno_id,
+                            codigo_dos_id = pc.codigo_dos_id
+                        FROM (
+                            SELECT DISTINCT ON (producto_id)
+                                producto_id, codigo_uno_id, codigo_dos_id
+                            FROM productos_producto_codigo
+                            ORDER BY producto_id, id
+                        ) pc
+                        WHERE p.id = pc.producto_id;
+
+                        DROP TABLE productos_producto_codigo;
+                    END IF;
+                END $$;
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+
+        # 4. Crear unique_together (las columnas ya existen en ambos casos)
         migrations.AlterUniqueTogether(
             name='producto',
             unique_together={
