@@ -66,27 +66,23 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if q:
             from django.db.models import Q
             import re
-            # Reagrupar tokens: "1 1/2" debe tratarse como un solo token, no como "1" y "1/2"
             raw = q.strip().upper()
-            tokens = re.findall(r'\d+\s+\d+/\d+|\d+/\d+|\d+|[A-Z]+', raw)
-            for token in tokens:
-                token = token.strip()
-                if not token:
-                    continue
-                if '-' in token:
-                    partes = token.split('-', 1)
-                    prefijo, sufijo = partes[0], partes[1]
-                    qs = qs.filter(
-                        Q(subcategoria__nombre__icontains=token)
-                        | Q(subcategoria__categoria__nombre__icontains=token)
-                        | Q(medida_principal__valor__icontains=token)
-                        | Q(medida_secundaria__valor__icontains=token)
-                        | Q(
-                            codigo_uno__valor__icontains=prefijo,
-                            codigo_dos__valor__icontains=sufijo,
-                        )
-                    )
-                else:
+
+            # Si el query contiene un guión, buscar exclusivamente por código
+            if '-' in raw:
+                partes = raw.split('-', 1)
+                prefijo, sufijo = partes[0].strip(), partes[1].strip()
+                qs = qs.filter(
+                    codigo_uno__valor__icontains=prefijo,
+                    codigo_dos__valor__icontains=sufijo,
+                )
+            else:
+                # Reagrupar tokens: "1 1/2" se trata como un solo token
+                tokens = re.findall(r'\d+\s+\d+/\d+|\d+/\d+|\d+|[A-Z]+', raw)
+                for token in tokens:
+                    token = token.strip()
+                    if not token:
+                        continue
                     qs = qs.filter(
                         Q(subcategoria__nombre__icontains=token)
                         | Q(subcategoria__categoria__nombre__icontains=token)
