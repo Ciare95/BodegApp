@@ -65,8 +65,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
         q = self.request.query_params.get('q')
         if q:
             from django.db.models import Q
-            tokens = q.strip().split()
+            import re
+            # Reagrupar tokens: "1 1/2" debe tratarse como un solo token, no como "1" y "1/2"
+            raw = q.strip().upper()
+            tokens = re.findall(r'\d+\s+\d+/\d+|\d+/\d+|\d+|[A-Z]+', raw)
             for token in tokens:
+                token = token.strip()
+                if not token:
+                    continue
                 if '-' in token:
                     partes = token.split('-', 1)
                     prefijo, sufijo = partes[0], partes[1]
