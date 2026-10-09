@@ -1,4 +1,0 @@
-# file: C:\laragon\www\BodegApp\productos\migrations\0005_producto_codigos_separados.py
-# hypothesis_version: 6.151.9
-
-['0001_initial', '0004_add_orden_field', 'ID', 'Producto', 'ProductoCodigo', 'categorias', 'categorias.codigodos', 'categorias.codigouno', 'codigo_dos', 'codigo_uno', 'codigos', 'id', 'medida_principal', 'medida_secundaria', 'producto', 'producto_codigos', 'productos', 'productos.producto', 'subcategoria', 'unique_together']

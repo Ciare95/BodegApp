@@ -63,9 +63,14 @@ class MedidaSecundariaSerializer(serializers.ModelSerializer):
 
 
 class CodigoUnoSerializer(serializers.ModelSerializer):
+    producto_count = serializers.SerializerMethodField()
+
+    def get_producto_count(self, obj):
+        return getattr(obj, 'producto_count', 0)
+
     class Meta:
         model = CodigoUno
-        fields = ['id', 'valor']
+        fields = ['id', 'valor', 'producto_count']
 
 
 class CodigoDosSerializer(serializers.ModelSerializer):

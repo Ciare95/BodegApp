@@ -1,96 +1,156 @@
-import random
 from django.core.management.base import BaseCommand
-from categorias.models import Categoria, Subcategoria, MedidaPrincipal, MedidaSecundaria, CodigoUno, CodigoDos
-from productos.models import Producto
+from django.db import transaction
+
+from categorias.models import (
+    Categoria, Subcategoria,
+    MedidaPrincipal, MedidaSecundaria,
+    CodigoUno, CodigoDos,
+)
+from productos.models import Producto, ProductoCodigo
 
 
-CATEGORIAS = {
-    'TORNILLERIA': ['TORNILLO GRADO 2', 'TORNILLO GRADO 5', 'TORNILLO GRADO 8', 'TORNILLO INOXIDABLE', 'TORNILLO GALVANIZADO'],
-    'TUERCAS': ['TUERCA HEXAGONAL', 'TUERCA AUTOBLOCANTE', 'TUERCA MARIPOSA', 'TUERCA CIEGA'],
-    'ARANDELAS': ['ARANDELA PLANA', 'ARANDELA DE PRESION', 'ARANDELA DENTADA'],
-    'PERNOS': ['PERNO CARROCERO', 'PERNO ANCLA', 'PERNO ESPARRAGO'],
-    'CLAVOS': ['CLAVO LISO', 'CLAVO GALVANIZADO', 'CLAVO PUNTA PARIS'],
-    'VARILLAS': ['VARILLA ROSCADA', 'VARILLA LISA', 'VARILLA CORRUGADA'],
-    'CABLES': ['CABLE ACERO', 'CABLE GALVANIZADO', 'CABLE INOXIDABLE'],
-    'CADENAS': ['CADENA SIMPLE', 'CADENA DOBLE', 'CADENA GALVANIZADA'],
-}
+CATEGORIAS = ['TORNILLERIA', 'HERRAMIENTAS', 'TUBERIA']
 
-MEDIDAS_PRINCIPALES = [
-    '1/4', '5/16', '3/8', '7/16', '1/2', '9/16', '5/8', '3/4',
-    '7/8', '1', '1 1/8', '1 1/4', '1 3/8', '1 1/2', '1 3/4', '2',
-    'M6', 'M8', 'M10', 'M12', 'M14', 'M16', 'M20', 'M24',
+SUBCATEGORIAS = [
+    ('TORNILLERIA', 'PERNOS'),
+    ('TORNILLERIA', 'TUERCAS'),
+    ('TORNILLERIA', 'ARANDELAS'),
+    ('HERRAMIENTAS', 'LLAVES'),
+    ('HERRAMIENTAS', 'DESTORNILLADORES'),
+    ('TUBERIA', 'PVC'),
 ]
 
-MEDIDAS_SECUNDARIAS = [
-    '1/2', '3/4', '1', '1 1/4', '1 1/2', '2', '2 1/2', '3',
-    '3 1/2', '4', '4 1/2', '5', '6', '8', '10', '12',
-    '20MM', '25MM', '30MM', '40MM', '50MM', '60MM', '75MM', '100MM',
+MEDIDAS_PRINCIPALES = ['1/4', '3/8', '1/2', '3/4', '1']
+MEDIDAS_SECUNDARIAS = ['1"', '2"', '3"', '5"']
+
+# Prefijos: letras (A, B, C, AB, BB) + números (1, 2, 3) + D sin productos
+CODIGOS_UNO = ['A', 'B', 'C', 'AB', 'BB', 'D', '1', '2', '3']
+CODIGOS_DOS = ['1', '2', '3', '4', 'AB']
+
+# (subcategoria_nombre, medida_principal, medida_secundaria_o_None, estado, prefijo, sufijo)
+PRODUCTOS = [
+    # ── Prefijo A (4 productos, orden por sufijo: AB, 1, 2, 3)
+    ('PERNOS',          '1/4',  None,   'verde',    'A',  '1'),
+    ('PERNOS',          '3/8',  None,   'amarillo', 'A',  '2'),
+    ('PERNOS',          '1/2',  None,   'verde',    'A',  '3'),
+    ('TUERCAS',         '1/4',  None,   'rojo',     'A',  'AB'),
+    # ── Prefijo AB (2 productos)
+    ('ARANDELAS',       '1/4',  None,   'verde',    'AB', '1'),
+    ('ARANDELAS',       '3/8',  None,   'rojo',     'AB', '2'),
+    # ── Prefijo B (4 productos)
+    ('TUERCAS',         '3/8',  None,   'verde',    'B',  '1'),
+    ('TUERCAS',         '1/2',  None,   'verde',    'B',  '2'),
+    ('LLAVES',          '3/4',  None,   'amarillo', 'B',  '3'),
+    ('LLAVES',          '1',    None,   'verde',    'B',  '4'),
+    # ── Prefijo BB (1 producto)
+    ('PERNOS',          '3/4',  '1"',   'verde',    'BB', '1'),
+    # ── Prefijo C (1 producto)
+    ('TUERCAS',         '3/4',  None,   'verde',    'C',  '1'),
+    # ── Prefijo D: sin productos (solo existe el CodigoUno)
+    # ── Prefijo 1 (2 productos)
+    ('LLAVES',          '1/4',  '1"',   'verde',    '1',  '1'),
+    ('LLAVES',          '3/8',  '2"',   'verde',    '1',  '2'),
+    # ── Prefijo 2 (1 producto)
+    ('PVC',             '3/4',  '3"',   'amarillo', '2',  '1'),
+    # ── Prefijo 3 (1 producto)
+    ('DESTORNILLADORES','1/2',  '5"',   'verde',    '3',  '1'),
 ]
-
-PREFIJOS = ['EB', 'GB', 'HB', 'AB', 'CB', 'DB', 'FB', 'IB', 'JB', 'KB']
-
-SUFIJOS = [str(n) for n in range(10, 200, 5)]
 
 
 class Command(BaseCommand):
-    help = 'Genera datos de prueba: catalogos y ~1000 productos'
+    help = 'Carga datos de prueba para testear la funcionalidad de Revisión de Bodega.'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--flush',
+            action='store_true',
+            help='Elimina productos, códigos y catálogos existentes antes de crear los datos.',
+        )
+
+    @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write('Creando catalogos...')
+        if options['flush']:
+            ProductoCodigo.objects.all().delete()
+            Producto.objects.all().delete()
+            CodigoDos.objects.all().delete()
+            CodigoUno.objects.all().delete()
+            MedidaSecundaria.objects.all().delete()
+            MedidaPrincipal.objects.all().delete()
+            Subcategoria.objects.all().delete()
+            Categoria.objects.all().delete()
+            self.stdout.write(self.style.WARNING('  Datos anteriores eliminados.'))
 
-        subcats = []
-        for cat_nombre, sub_nombres in CATEGORIAS.items():
-            cat, _ = Categoria.objects.get_or_create(nombre=cat_nombre)
-            for sub_nombre in sub_nombres:
-                sub, _ = Subcategoria.objects.get_or_create(categoria=cat, nombre=sub_nombre)
-                subcats.append(sub)
+        # Categorías
+        cats = {}
+        for nombre in CATEGORIAS:
+            obj, created = Categoria.objects.get_or_create(nombre=nombre)
+            cats[obj.nombre] = obj
+            if created:
+                self.stdout.write(f'  + Categoría: {obj.nombre}')
 
-        meds_p = [MedidaPrincipal.objects.get_or_create(valor=v)[0] for v in MEDIDAS_PRINCIPALES]
-        meds_s = [MedidaSecundaria.objects.get_or_create(valor=v)[0] for v in MEDIDAS_SECUNDARIAS]
-        cod_uno = [CodigoUno.objects.get_or_create(valor=v)[0] for v in PREFIJOS]
-        cod_dos = [CodigoDos.objects.get_or_create(valor=v)[0] for v in SUFIJOS]
+        # Subcategorías
+        subs = {}
+        for cat_nombre, sub_nombre in SUBCATEGORIAS:
+            obj, created = Subcategoria.objects.get_or_create(
+                categoria=cats[cat_nombre], nombre=sub_nombre
+            )
+            subs[obj.nombre] = obj
+            if created:
+                self.stdout.write(f'  + Subcategoría: {obj.nombre}')
 
-        self.stdout.write('Creando productos...')
+        # Medidas principales
+        mps = {}
+        for valor in MEDIDAS_PRINCIPALES:
+            obj, _ = MedidaPrincipal.objects.get_or_create(valor=valor)
+            mps[obj.valor] = obj
 
-        estados = ['verde', 'amarillo', 'rojo']
+        # Medidas secundarias
+        mss = {}
+        for valor in MEDIDAS_SECUNDARIAS:
+            obj, _ = MedidaSecundaria.objects.get_or_create(valor=valor)
+            mss[obj.valor] = obj
+
+        # Prefijos (CodigoUno)
+        cu = {}
+        for valor in CODIGOS_UNO:
+            obj, _ = CodigoUno.objects.get_or_create(valor=valor)
+            cu[obj.valor] = obj
+
+        # Sufijos (CodigoDos)
+        cd = {}
+        for valor in CODIGOS_DOS:
+            obj, _ = CodigoDos.objects.get_or_create(valor=valor)
+            cd[obj.valor] = obj
+
+        # Productos y sus códigos
         creados = 0
-        omitidos = 0
+        existentes = 0
+        for sub_n, mp_v, ms_v, estado, prefijo, sufijo in PRODUCTOS:
+            ms_obj = mss.get(ms_v) if ms_v else None
+            prod, created = Producto.objects.get_or_create(
+                subcategoria=subs[sub_n],
+                medida_principal=mps[mp_v],
+                medida_secundaria=ms_obj,
+                defaults={'estado': estado},
+            )
+            if created:
+                creados += 1
+            else:
+                existentes += 1
 
-        codigos_disponibles = [(c1, c2) for c1 in cod_uno for c2 in cod_dos]
-        random.shuffle(codigos_disponibles)
-        codigo_idx = 0
-
-        for sub in subcats:
-            for mp in meds_p:
-                for ms in meds_s:
-                    if creados >= 1000:
-                        break
-
-                    c1, c2 = None, None
-                    if random.random() < 0.7 and codigo_idx < len(codigos_disponibles):
-                        c1, c2 = codigos_disponibles[codigo_idx]
-                        codigo_idx += 1
-
-                    try:
-                        Producto.objects.create(
-                            subcategoria=sub,
-                            medida_principal=mp,
-                            medida_secundaria=ms,
-                            codigo_uno=c1,
-                            codigo_dos=c2,
-                            estado=random.choice(estados),
-                        )
-                        creados += 1
-                        if creados % 100 == 0:
-                            self.stdout.write(f'  {creados} productos creados...')
-                    except Exception:
-                        omitidos += 1
-
-                if creados >= 1000:
-                    break
-            if creados >= 1000:
-                break
+            ProductoCodigo.objects.get_or_create(
+                codigo_uno=cu[prefijo],
+                codigo_dos=cd[sufijo],
+                defaults={'producto': prod},
+            )
+            codigo = f'{prefijo}-{sufijo}'
+            if created:
+                self.stdout.write(f'  + {codigo}: {prod.nombre_completo} [{estado}]')
 
         self.stdout.write(self.style.SUCCESS(
-            f'Listo. {creados} productos creados, {omitidos} omitidos por duplicados.'
+            f'\nSeed completado: {creados} productos creados, {existentes} ya existian.\n'
+            f'Prefijos cargados: {", ".join(CODIGOS_UNO)}\n'
+            f'  - D no tiene productos (testea "Sin productos")\n'
+            f'  - A tiene sufijo "AB" (testea letras-antes-numeros en detalle)\n'
+            f'  - Varios estados verde/amarillo/rojo para testear cambio de estado'
         ))
