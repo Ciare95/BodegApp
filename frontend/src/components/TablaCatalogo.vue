@@ -7,7 +7,28 @@
       </button>
     </div>
 
-    <div class="table-wrap">
+    <!-- Modo cards (con imagen) -->
+    <div v-if="conImagen" class="cards-grid">
+      <div v-for="item in items" :key="item.id" class="img-card">
+        <div class="img-card-foto">
+          <img v-if="item[campoImagen]" :src="item[campoImagen]" :alt="item[campo]" class="img-card-img" />
+          <div v-else class="img-card-placeholder">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+        </div>
+        <div class="img-card-info">
+          <span class="img-card-nombre">{{ item[campo] }}</span>
+          <div class="img-card-actions">
+            <button class="btn-row" @click="abrirEditModal(item)">Editar</button>
+            <button class="btn-row danger" @click="eliminar(item)">Eliminar</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="!items.length" class="empty-state-cards">Sin registros</div>
+    </div>
+
+    <!-- Modo tabla (sin imagen) -->
+    <div v-else class="table-wrap">
       <table class="tabla">
         <thead>
           <tr>
@@ -28,7 +49,7 @@
                 v-model="editValor"
                 class="edit-input"
                 @input="editValor = editValor.toUpperCase()"
-                @keydown.enter="guardarEdicion(item)"
+                @keydown.enter="guardarEdicionInline(item)"
                 @keydown.escape="cancelarEdicion"
                 ref="editInputRef"
               />
@@ -40,7 +61,7 @@
                   <button class="btn-row danger" @click="eliminar(item)">Eliminar</button>
                 </template>
                 <template v-else>
-                  <button class="btn-row primary" @click="guardarEdicion(item)">Guardar</button>
+                  <button class="btn-row primary" @click="guardarEdicionInline(item)">Guardar</button>
                   <button class="btn-row" @click="cancelarEdicion">Cancelar</button>
                 </template>
               </div>
@@ -105,6 +126,66 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Modal edición (modo imagen) -->
+    <Transition name="modal">
+      <div v-if="editModal" class="overlay" @click.self="cerrarEditModal">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>Editar {{ label }}</h2>
+            <button class="btn-close" @click="cerrarEditModal">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Previsualización de imagen -->
+            <div class="field">
+              <label>Imagen</label>
+              <div class="img-preview-wrap" @click="fileInputRef?.click()">
+                <img v-if="editImagePreview" :src="editImagePreview" class="img-preview" alt="Vista previa" />
+                <div v-else class="img-preview-placeholder">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span>Clic para seleccionar imagen</span>
+                </div>
+                <div class="img-preview-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Cambiar imagen</span>
+                </div>
+              </div>
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="file-input-hidden"
+                @change="onFileChange"
+              />
+            </div>
+
+            <!-- Campo nombre -->
+            <div class="field">
+              <label>{{ label }}</label>
+              <input
+                v-model="editValor"
+                @input="editValor = editValor.toUpperCase()"
+              />
+            </div>
+
+            <p v-if="errorEditModal" class="error-msg">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ errorEditModal }}
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="cerrarEditModal">Cancelar</button>
+            <button class="btn-save" :disabled="guardando" @click="guardarEdicionModal">
+              {{ guardando ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -119,6 +200,8 @@ const props = defineProps({
   label: { type: String, required: true },
   camposExtra: { type: Array, default: () => [] },
   camposCreacion: { type: Array, default: () => [] },
+  conImagen: { type: Boolean, default: false },
+  campoImagen: { type: String, default: 'imagen_url' },
 })
 
 const items = ref([])
@@ -132,6 +215,15 @@ const nuevoInputRef = ref(null)
 const error = ref('')
 const errorModal = ref('')
 const { showConfirm } = useConfirm()
+
+// Estado del modal de edición con imagen
+const editModal = ref(false)
+const editItem = ref(null)
+const editImageFile = ref(null)
+const editImagePreview = ref(null)
+const errorEditModal = ref('')
+const guardando = ref(false)
+const fileInputRef = ref(null)
 
 async function cargar() {
   const { data } = await client.get(props.endpoint)
@@ -149,13 +241,61 @@ function cancelarEdicion() {
   editValor.value = ''
 }
 
-async function guardarEdicion(item) {
+async function guardarEdicionInline(item) {
   try {
     await client.patch(`${props.endpoint}${item.id}/`, { [props.campo]: editValor.value })
     cancelarEdicion()
     await cargar()
   } catch (e) {
     error.value = e.response?.data?.[props.campo]?.[0] || 'Error al guardar'
+  }
+}
+
+function abrirEditModal(item) {
+  editItem.value = item
+  editValor.value = item[props.campo]
+  editImageFile.value = null
+  editImagePreview.value = item[props.campoImagen] || null
+  errorEditModal.value = ''
+  editModal.value = true
+}
+
+function cerrarEditModal() {
+  editModal.value = false
+  editItem.value = null
+  editImageFile.value = null
+  editImagePreview.value = null
+  errorEditModal.value = ''
+}
+
+function onFileChange(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  editImageFile.value = file
+  editImagePreview.value = URL.createObjectURL(file)
+}
+
+async function guardarEdicionModal() {
+  if (!editItem.value) return
+  guardando.value = true
+  errorEditModal.value = ''
+  try {
+    if (editImageFile.value) {
+      const form = new FormData()
+      form.append(props.campo, editValor.value)
+      form.append('imagen', editImageFile.value)
+      await client.patch(`${props.endpoint}${editItem.value.id}/`, form, {
+        headers: { 'Content-Type': undefined },
+      })
+    } else {
+      await client.patch(`${props.endpoint}${editItem.value.id}/`, { [props.campo]: editValor.value })
+    }
+    cerrarEditModal()
+    await cargar()
+  } catch (e) {
+    errorEditModal.value = e.response?.data?.[props.campo]?.[0] || 'Error al guardar'
+  } finally {
+    guardando.value = false
   }
 }
 
@@ -211,6 +351,7 @@ watch(mostrarModal, (val) => {
 }
 .btn-primary:hover { opacity: 0.82; }
 
+/* ── Modo tabla ── */
 .table-wrap {
   border: 1px solid var(--border); border-radius: var(--r-lg);
   overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--surface);
@@ -248,6 +389,97 @@ watch(mostrarModal, (val) => {
 .row-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity var(--t); }
 .tabla tbody tr:hover .row-actions { opacity: 1; }
 
+/* ── Modo cards ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.img-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface);
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.img-card:hover {
+  border-color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+}
+
+.img-card-foto {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.img-card-img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+
+.img-card-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-4);
+}
+
+.img-card-info {
+  padding: 0.625rem 0.875rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+
+.img-card-nombre {
+  font-size: 0.875rem; font-weight: 500; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.img-card-actions {
+  display: flex; gap: 0.25rem; flex-shrink: 0;
+}
+
+.empty-state-cards {
+  grid-column: 1 / -1;
+  text-align: center; padding: 3rem;
+  color: var(--ink-4); font-size: 0.875rem;
+}
+
+/* ── Imagen preview en modal de edición ── */
+.img-preview-wrap {
+  position: relative;
+  width: 100%; aspect-ratio: 16 / 9;
+  border: 1.5px dashed var(--border-md);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg);
+}
+.img-preview-wrap:hover .img-preview-overlay { opacity: 1; }
+
+.img-preview {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+
+.img-preview-placeholder {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.5rem; color: var(--ink-3); font-size: 0.8125rem;
+}
+
+.img-preview-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.375rem; color: #fff; font-size: 0.8125rem; font-weight: 500;
+  opacity: 0; transition: opacity var(--t);
+}
+
+.file-input-hidden { display: none; }
+
+/* ── Botones de fila ── */
 .btn-row {
   padding: 0.25rem 0.625rem; font-size: 0.75rem; font-weight: 500;
   color: var(--ink-2); background: var(--bg);
@@ -277,7 +509,7 @@ watch(mostrarModal, (val) => {
 
 .modal {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg); width: 100%; max-width: 380px; overflow: hidden;
+  border-radius: var(--r-lg); width: 100%; max-width: 420px; overflow: hidden;
 }
 
 .modal-header {
@@ -347,6 +579,7 @@ select:focus { border-color: var(--ink); }
   transition: opacity var(--t); cursor: pointer;
 }
 .btn-save:hover { opacity: 0.82; }
+.btn-save:disabled { opacity: 0.5; cursor: default; }
 
 .modal-enter-active, .modal-leave-active { transition: opacity 0.15s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
