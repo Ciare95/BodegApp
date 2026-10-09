@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.exceptions import ValidationError
+from django.db.models import Count
 
 from categorias.models import (
     Categoria,
@@ -70,8 +71,13 @@ class MedidaSecundariaViewSet(CatalogoBaseViewSet):
 
 
 class CodigoUnoViewSet(CatalogoBaseViewSet):
-    queryset = CodigoUno.objects.all().order_by('valor')
     serializer_class = CodigoUnoSerializer
+
+    def get_queryset(self):
+        qs = CodigoUno.objects.all().order_by('valor')
+        if self.request.query_params.get('con_conteo') == 'true':
+            qs = qs.annotate(producto_count=Count('producto_codigos__producto', distinct=True))
+        return qs
 
 
 class CodigoDosViewSet(CatalogoBaseViewSet):
