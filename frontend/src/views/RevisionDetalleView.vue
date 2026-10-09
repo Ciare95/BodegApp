@@ -81,13 +81,11 @@ function ordenarPorSufijo(lista) {
 }
 
 function codigoDosValor(prod) {
-  const codigo = prod.codigos?.find(c => c.codigo_uno_valor?.toUpperCase() === prefijo.toUpperCase())
-  return codigo?.codigo_dos_valor ?? ''
+  return prod.codigo_dos_valor ?? ''
 }
 
 function codigoPrincipal(prod) {
-  const codigo = prod.codigos?.find(c => c.codigo_uno_valor?.toUpperCase() === prefijo.toUpperCase())
-  return codigo?.codigo_completo ?? prod.codigo_completo
+  return prod.codigo_completo ?? '—'
 }
 
 function estadoActual(prod) {
