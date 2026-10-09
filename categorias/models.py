@@ -3,6 +3,7 @@ from django.db import models
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
+    imagen = models.ImageField(upload_to='categorias/', blank=True, null=True)
 
     def save(self, *args, **kwargs):
         self.nombre = self.nombre.upper().strip()
@@ -15,6 +16,7 @@ class Categoria(models.Model):
 class Subcategoria(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='subcategorias')
     nombre = models.CharField(max_length=100)
+    imagen = models.ImageField(upload_to='subcategorias/', blank=True, null=True)
 
     def save(self, *args, **kwargs):
         self.nombre = self.nombre.upper().strip()

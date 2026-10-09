@@ -22,6 +22,8 @@
       :label="tabActual.label"
       :campos-extra="tabActual.camposExtra ?? []"
       :campos-creacion="tabActual.camposCreacion ?? []"
+      :con-imagen="tabActual.conImagen ?? false"
+      :campo-imagen="tabActual.campoImagen ?? 'imagen_url'"
     />
   </div>
 </template>
@@ -39,12 +41,13 @@ onMounted(async () => {
 })
 
 const tabs = computed(() => [
-  { key: 'categorias', label: 'Categorías', endpoint: '/categorias/', campo: 'nombre', label: 'Categoría' },
+  { key: 'categorias', label: 'Categorías', endpoint: '/categorias/', campo: 'nombre', label: 'Categoría', conImagen: true, campoImagen: 'imagen_url' },
   {
     key: 'subcategorias', label: 'Subcategorías', endpoint: '/subcategorias/',
     campo: 'nombre', label: 'Subcategoría',
     camposExtra: [{ key: 'categoria_nombre', label: 'Categoría' }],
     camposCreacion: [{ key: 'categoria_id', label: 'Categoría', opciones: categorias.value }],
+    conImagen: true, campoImagen: 'imagen_url',
   },
   { key: 'medidas-principales', label: 'Medidas principales', endpoint: '/medidas-principales/', campo: 'valor', label: 'Medida Principal' },
   { key: 'medidas-secundarias', label: 'Medidas secundarias', endpoint: '/medidas-secundarias/', campo: 'valor', label: 'Medida Secundaria' },

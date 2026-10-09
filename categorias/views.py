@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.core.exceptions import ValidationError
 
 from categorias.models import (
@@ -23,11 +24,7 @@ from usuarios.permissions import EsSoloAdmin, EsAdminOEmpleado
 
 
 class CatalogoBaseViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet base para todos los catálogos.
-    - list / retrieve: admin y empleado
-    - create / update / destroy: solo admin
-    """
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):

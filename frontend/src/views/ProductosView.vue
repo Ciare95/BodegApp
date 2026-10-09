@@ -72,8 +72,13 @@
         class="cat-card"
         @click="seleccionarCategoria(cat)"
       >
+        <div class="cat-img-wrap">
+          <img v-if="cat.imagen_url" :src="cat.imagen_url" :alt="cat.nombre" class="cat-img" />
+          <div v-else class="cat-placeholder">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+        </div>
         <span class="cat-nombre">{{ cat.nombre }}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <div v-if="!categorias.length" class="empty-hint">No hay categorías</div>
     </div>
@@ -86,8 +91,13 @@
         class="cat-card"
         @click="seleccionarSubcategoria(sub)"
       >
+        <div class="cat-img-wrap">
+          <img v-if="sub.imagen_url" :src="sub.imagen_url" :alt="sub.nombre" class="cat-img" />
+          <div v-else class="cat-placeholder">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+        </div>
         <span class="cat-nombre">{{ sub.nombre }}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <div v-if="!subcategorias.length" class="empty-hint">No hay subcategorías</div>
     </div>
@@ -499,29 +509,55 @@ onMounted(async () => {
 /* ── Cards grid (categorías / subcategorías) ── */
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
 }
 
 .cat-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 1rem 1.125rem;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--t), box-shadow var(--t), background var(--t);
+  overflow: hidden;
+  transition: border-color var(--t), box-shadow var(--t);
 }
 .cat-card:hover {
   border-color: var(--ink);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
-.cat-card svg { color: var(--ink-4); flex-shrink: 0; }
+
+.cat-img-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.cat-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cat-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-4);
+  background: var(--bg);
+}
+
 .cat-nombre {
+  padding: 0.75rem 1rem;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--ink);
