@@ -11,6 +11,7 @@ from categorias.models import (
     MedidaSecundaria,
     CodigoUno,
     CodigoDos,
+    CodigoLibre,
 )
 from categorias.serializers import (
     CategoriaSerializer,
@@ -19,6 +20,7 @@ from categorias.serializers import (
     MedidaSecundariaSerializer,
     CodigoUnoSerializer,
     CodigoDosSerializer,
+    CodigoLibreSerializer,
 )
 from categorias.service import eliminar_valor_catalogo
 from usuarios.permissions import EsSoloAdmin, EsAdminOEmpleado
@@ -83,3 +85,60 @@ class CodigoUnoViewSet(CatalogoBaseViewSet):
 class CodigoDosViewSet(CatalogoBaseViewSet):
     queryset = CodigoDos.objects.all().order_by('valor')
     serializer_class = CodigoDosSerializer
+
+
+class CodigoLibreViewSet(CatalogoBaseViewSet):
+    serializer_class = CodigoLibreSerializer
+
+    def get_queryset(self):
+        return CodigoLibre.objects.select_related('codigo_uno', 'codigo_dos').order_by(
+            'codigo_uno__valor', 'codigo_dos__valor'
+        )
+
+    def _parsear_errores(self, errors):
+        if 'non_field_errors' in errors:
+            return 'Ese código ya está registrado como libre.'
+        partes = []
+        for errores in errors.values():
+            partes.append(str(errores[0] if isinstance(errores, list) else errores))
+        return ' '.join(partes)
+
+    def _validar_no_asignado(self, codigo_uno, codigo_dos):
+        from productos.models import ProductoCodigo
+        if ProductoCodigo.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).exists():
+            raise ValidationError('Ese código ya está asignado a un producto.')
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': self._parsear_errores(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self._validar_no_asignado(
+                serializer.validated_data['codigo_uno'],
+                serializer.validated_data['codigo_dos'],
+            )
+        except ValidationError as e:
+            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instancia = self.get_object()
+        serializer = self.get_serializer(instancia, data=request.data, partial=kwargs.get('partial', False))
+        if not serializer.is_valid():
+            return Response({'detail': self._parsear_errores(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self._validar_no_asignado(
+                serializer.validated_data.get('codigo_uno', instancia.codigo_uno),
+                serializer.validated_data.get('codigo_dos', instancia.codigo_dos),
+            )
+        except ValidationError as e:
+            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self.perform_update(serializer)
+        except Exception:
+            return Response(
+                {'detail': 'Ese código ya está registrado como libre.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(serializer.data)

@@ -6,6 +6,7 @@ from categorias.views import (
     MedidaSecundariaViewSet,
     CodigoUnoViewSet,
     CodigoDosViewSet,
+    CodigoLibreViewSet,
 )
 
 router = DefaultRouter()
@@ -15,5 +16,6 @@ router.register('medidas-principales', MedidaPrincipalViewSet, basename='medida-
 router.register('medidas-secundarias', MedidaSecundariaViewSet, basename='medida-secundaria')
 router.register('codigos-uno', CodigoUnoViewSet, basename='codigo-uno')
 router.register('codigos-dos', CodigoDosViewSet, basename='codigo-dos')
+router.register('codigos-libres', CodigoLibreViewSet, basename='codigo-libre')
 
 urlpatterns = router.urls

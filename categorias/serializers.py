@@ -6,6 +6,7 @@ from categorias.models import (
     MedidaSecundaria,
     CodigoUno,
     CodigoDos,
+    CodigoLibre,
 )
 
 
@@ -77,3 +78,14 @@ class CodigoDosSerializer(serializers.ModelSerializer):
     class Meta:
         model = CodigoDos
         fields = ['id', 'valor']
+
+
+class CodigoLibreSerializer(serializers.ModelSerializer):
+    codigo_uno_valor = serializers.CharField(source='codigo_uno.valor', read_only=True)
+    codigo_dos_valor = serializers.CharField(source='codigo_dos.valor', read_only=True)
+    codigo_uno = serializers.PrimaryKeyRelatedField(queryset=CodigoUno.objects.all())
+    codigo_dos = serializers.PrimaryKeyRelatedField(queryset=CodigoDos.objects.all())
+
+    class Meta:
+        model = CodigoLibre
+        fields = ['id', 'codigo_uno', 'codigo_dos', 'codigo_uno_valor', 'codigo_dos_valor']
