@@ -1,61 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from productos.models import Producto, ProductoCodigo, Historial
+from productos.models import Producto, Historial
 from categorias.models import CodigoLibre
-
-
-def _validar_codigos(codigos_data, excluir_producto_id=None):
-    """Valida que ningún par codigo_uno/codigo_dos ya esté en uso."""
-    for c in codigos_data:
-        qs = ProductoCodigo.objects.filter(
-            codigo_uno=c['codigo_uno'],
-            codigo_dos=c['codigo_dos'],
-        )
-        if excluir_producto_id:
-            qs = qs.exclude(producto_id=excluir_producto_id)
-        if qs.exists():
-            raise ValidationError(
-                f"El código {c['codigo_uno'].valor}-{c['codigo_dos'].valor} ya está en uso."
-            )
-
-
-@transaction.atomic
-def crear_producto(data: dict, usuario) -> Producto:
-    codigos_data = data.pop('codigos', [])
-
-    duplicado = Producto.objects.filter(
-        subcategoria=data.get('subcategoria'),
-        medida_principal=data.get('medida_principal'),
-        medida_secundaria=data.get('medida_secundaria'),
-    ).exists()
-    if duplicado:
-        raise ValidationError('Ya existe un producto con esa combinación de catálogos.')
-
-    if not codigos_data:
-        raise ValidationError('El producto debe tener al menos un código.')
-
-    _validar_codigos(codigos_data)
-
-    producto = Producto.objects.create(
-        subcategoria=data['subcategoria'],
-        medida_principal=data['medida_principal'],
-        medida_secundaria=data.get('medida_secundaria'),
-        estado=data.get('estado', 'verde'),
-        actualizado_por=usuario,
-    )
-
-    for c in codigos_data:
-        ProductoCodigo.objects.create(
-            producto=producto,
-            codigo_uno=c['codigo_uno'],
-            codigo_dos=c['codigo_dos'],
-        )
-        CodigoLibre.objects.filter(
-            codigo_uno=c['codigo_uno'],
-            codigo_dos=c['codigo_dos'],
-        ).delete()
-
-    return producto
 
 
 def _valor_legible(campo: str, instancia) -> str:
@@ -69,12 +15,32 @@ def _valor_legible(campo: str, instancia) -> str:
     return str(valor)
 
 
-CAMPOS_PRODUCTO = ['subcategoria', 'medida_principal', 'medida_secundaria', 'estado']
+CAMPOS_PRODUCTO = ['subcategoria', 'medida_principal', 'medida_secundaria', 'codigo_uno', 'codigo_dos', 'estado']
+
+
+@transaction.atomic
+def crear_producto(data: dict, usuario) -> Producto:
+    codigo_uno = data.get('codigo_uno')
+    codigo_dos = data.get('codigo_dos')
+
+    producto = Producto.objects.create(
+        subcategoria=data['subcategoria'],
+        medida_principal=data['medida_principal'],
+        medida_secundaria=data.get('medida_secundaria'),
+        codigo_uno=codigo_uno,
+        codigo_dos=codigo_dos,
+        estado=data.get('estado', 'verde'),
+        actualizado_por=usuario,
+    )
+
+    if codigo_uno and codigo_dos:
+        CodigoLibre.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).delete()
+
+    return producto
 
 
 @transaction.atomic
 def actualizar_producto(producto, data: dict, usuario) -> Producto:
-    codigos_data = data.pop('codigos', None)
     campos_modificados = []
 
     for campo in CAMPOS_PRODUCTO:
@@ -95,43 +61,6 @@ def actualizar_producto(producto, data: dict, usuario) -> Producto:
             setattr(producto, campo, nuevo_valor_obj)
             campos_modificados.append((campo, valor_anterior, valor_nuevo))
 
-    # Sincronizar códigos si se enviaron
-    if codigos_data is not None:
-        if not codigos_data:
-            raise ValidationError('El producto debe tener al menos un código.')
-
-        # Validar unicidad de los nuevos códigos (excluyendo los del propio producto)
-        _validar_codigos(codigos_data, excluir_producto_id=producto.id)
-
-        # Determinar qué códigos agregar y cuáles eliminar
-        nuevos_pares = {(c['codigo_uno'].id, c['codigo_dos'].id) for c in codigos_data}
-        existentes = {(c.codigo_uno_id, c.codigo_dos_id): c for c in producto.codigos.all()}
-        existentes_pares = set(existentes.keys())
-
-        agregar = nuevos_pares - existentes_pares
-        eliminar = existentes_pares - nuevos_pares
-
-        for par in eliminar:
-            pc = existentes[par]
-            valor = f"{pc.codigo_uno.valor}-{pc.codigo_dos.valor}"
-            pc.delete()
-            campos_modificados.append(('codigo_eliminado', valor, ''))
-
-        for c in codigos_data:
-            par = (c['codigo_uno'].id, c['codigo_dos'].id)
-            if par in agregar:
-                ProductoCodigo.objects.create(
-                    producto=producto,
-                    codigo_uno=c['codigo_uno'],
-                    codigo_dos=c['codigo_dos'],
-                )
-                CodigoLibre.objects.filter(
-                    codigo_uno=c['codigo_uno'],
-                    codigo_dos=c['codigo_dos'],
-                ).delete()
-                valor = f"{c['codigo_uno'].valor}-{c['codigo_dos'].valor}"
-                campos_modificados.append(('codigo_agregado', '', valor))
-
     if campos_modificados:
         producto.actualizado_por = usuario
         producto.save()
@@ -146,50 +75,12 @@ def actualizar_producto(producto, data: dict, usuario) -> Producto:
             for campo, v_ant, v_nuevo in campos_modificados
         ])
 
+        codigo_uno = producto.codigo_uno
+        codigo_dos = producto.codigo_dos
+        if codigo_uno and codigo_dos:
+            CodigoLibre.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).delete()
+
     return producto
-
-
-@transaction.atomic
-def agregar_codigo(producto, codigo_uno, codigo_dos, usuario) -> ProductoCodigo:
-    """Agrega un nuevo código a un producto existente."""
-    if ProductoCodigo.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).exists():
-        raise ValidationError(
-            f"El código {codigo_uno.valor}-{codigo_dos.valor} ya está en uso."
-        )
-    pc = ProductoCodigo.objects.create(
-        producto=producto,
-        codigo_uno=codigo_uno,
-        codigo_dos=codigo_dos,
-    )
-    CodigoLibre.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).delete()
-    Historial.objects.create(
-        producto=producto,
-        usuario=usuario,
-        campo_modificado='codigo_agregado',
-        valor_anterior='',
-        valor_nuevo=f"{codigo_uno.valor}-{codigo_dos.valor}",
-    )
-    return pc
-
-
-@transaction.atomic
-def eliminar_codigo(producto, codigo_id, usuario) -> None:
-    """Elimina un código de un producto. Debe quedar al menos uno."""
-    if producto.codigos.count() <= 1:
-        raise ValidationError('El producto debe tener al menos un código.')
-    try:
-        pc = producto.codigos.get(id=codigo_id)
-    except ProductoCodigo.DoesNotExist:
-        raise ValidationError('Código no encontrado en este producto.')
-    valor = f"{pc.codigo_uno.valor}-{pc.codigo_dos.valor}"
-    pc.delete()
-    Historial.objects.create(
-        producto=producto,
-        usuario=usuario,
-        campo_modificado='codigo_eliminado',
-        valor_anterior=valor,
-        valor_nuevo='',
-    )
 
 
 def cambiar_estado(producto, nuevo_estado: str, usuario) -> Producto:

@@ -38,29 +38,47 @@
       </Transition>
     </div>
 
-    <!-- Breadcrumb + acción -->
-    <div class="toolbar">
-      <nav class="breadcrumb">
-        <button class="crumb" :class="{ activo: !categoriaActiva }" @click="resetear">Productos</button>
-        <template v-if="categoriaActiva">
-          <span class="sep">›</span>
-          <button class="crumb" :class="{ activo: !subcategoriaActiva }" @click="seleccionarCategoria(categoriaActiva)">
-            {{ categoriaActiva.nombre }}
+    <!-- Zona fija: breadcrumb + filtros (cuando hay productos) -->
+    <div class="sticky-zone">
+      <div class="toolbar">
+        <nav class="breadcrumb">
+          <button class="crumb" :class="{ activo: !categoriaActiva }" @click="resetear">Productos</button>
+          <template v-if="categoriaActiva">
+            <span class="sep">›</span>
+            <button class="crumb" :class="{ activo: !subcategoriaActiva }" @click="seleccionarCategoria(categoriaActiva)">
+              {{ categoriaActiva.nombre }}
+            </button>
+          </template>
+          <template v-if="subcategoriaActiva">
+            <span class="sep">›</span>
+            <span class="crumb activo">{{ subcategoriaActiva.nombre }}</span>
+          </template>
+        </nav>
+        <RouterLink
+            v-if="auth.esAdmin"
+            :to="{ name: 'producto-nuevo', query: { categoria_id: categoriaActiva?.id, subcategoria_id: subcategoriaActiva?.id } }"
+            class="btn-primary"
+          >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo
+        </RouterLink>
+      </div>
+
+      <!-- Filtro estado (solo visible en lista de productos) -->
+      <div v-if="subcategoriaActiva && !cargando" class="tabla-toolbar">
+        <div class="estado-filtros">
+          <button
+            v-for="op in estadoOpciones"
+            :key="op.valor"
+            :class="['filtro-estado', op.valor, { activo: filtroEstado === op.valor }]"
+            @click="toggleFiltroEstado(op.valor)"
+          >
+            <span class="dot"></span>{{ op.label }}
+            <svg v-if="filtroEstado === op.valor" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
-        </template>
-        <template v-if="subcategoriaActiva">
-          <span class="sep">›</span>
-          <span class="crumb activo">{{ subcategoriaActiva.nombre }}</span>
-        </template>
-      </nav>
-      <RouterLink
-          v-if="auth.esAdmin"
-          :to="{ name: 'producto-nuevo', query: { categoria_id: categoriaActiva?.id, subcategoria_id: subcategoriaActiva?.id } }"
-          class="btn-primary"
-        >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nuevo
-      </RouterLink>
+        </div>
+        <span class="count-badge">{{ productos.length }}</span>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -109,22 +127,6 @@
     <!-- Tabla de productos -->
     <template v-else>
       <p v-if="errorEstado" class="error-msg">{{ errorEstado }}</p>
-
-      <!-- Filtro estado -->
-      <div class="tabla-toolbar">
-        <div class="estado-filtros">
-          <button
-            v-for="op in estadoOpciones"
-            :key="op.valor"
-            :class="['filtro-estado', op.valor, { activo: filtroEstado === op.valor }]"
-            @click="toggleFiltroEstado(op.valor)"
-          >
-            <span class="dot"></span>{{ op.label }}
-            <svg v-if="filtroEstado === op.valor" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <span class="count-badge">{{ productos.length }}</span>
-      </div>
 
       <div class="table-wrap table-desktop">
         <table class="tabla">
@@ -387,6 +389,19 @@ onMounted(async () => {
 
 <style scoped>
 .productos-page { display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* ── Zona sticky (breadcrumb + filtros) ── */
+.sticky-zone {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  margin-bottom: -1rem;
+}
 
 /* ── Hero ── */
 .hero {

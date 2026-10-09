@@ -106,7 +106,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         codigo_uno_id = self.request.query_params.get('codigo_uno_id')
         if codigo_uno_id:
-            qs = qs.filter(codigos__codigo_uno_id=codigo_uno_id)
+            qs = qs.filter(codigo_uno_id=codigo_uno_id)
 
         return qs.distinct()
 
