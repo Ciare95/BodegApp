@@ -4,7 +4,7 @@ from django.db import transaction
 from categorias.models import (
     Categoria, Subcategoria,
     MedidaPrincipal, MedidaSecundaria,
-    CodigoUno, CodigoDos,
+    CodigoUno, CodigoDos, CodigoLibre,
 )
 from productos.models import Producto, ProductoCodigo
 
@@ -147,10 +147,39 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f'  + {codigo}: {prod.nombre_completo} [{estado}]')
 
+        # Códigos libres: pares sin producto asignado para testear la funcionalidad
+        # Usan prefijos/sufijos ya existentes en los catálogos
+        CODIGOS_LIBRES = [
+            ('B', 'AB'),   # testea: letra antes que número en sufijo
+            ('C', '2'),
+            ('C', '3'),
+            ('D', '1'),    # prefijo D: sin productos, aquí sí tiene código libre
+            ('D', '2'),
+            ('1', 'AB'),
+            ('2', '2'),
+            ('3', '2'),
+        ]
+        libres_creados = 0
+        for prefijo_cl, sufijo_cl in CODIGOS_LIBRES:
+            # Saltar si este par ya está asignado a un producto
+            if ProductoCodigo.objects.filter(
+                codigo_uno=cu[prefijo_cl], codigo_dos=cd[sufijo_cl]
+            ).exists():
+                continue
+            _, cl_created = CodigoLibre.objects.get_or_create(
+                codigo_uno=cu[prefijo_cl],
+                codigo_dos=cd[sufijo_cl],
+            )
+            if cl_created:
+                libres_creados += 1
+                self.stdout.write(f'  + Libre: {prefijo_cl}-{sufijo_cl}')
+
         self.stdout.write(self.style.SUCCESS(
             f'\nSeed completado: {creados} productos creados, {existentes} ya existian.\n'
+            f'{libres_creados} codigos libres creados.\n'
             f'Prefijos cargados: {", ".join(CODIGOS_UNO)}\n'
-            f'  - D no tiene productos (testea "Sin productos")\n'
+            f'  - D no tiene productos (testea "Sin productos" en Revision)\n'
             f'  - A tiene sufijo "AB" (testea letras-antes-numeros en detalle)\n'
+            f'  - B-AB y D-1/D-2 testean Codigo libre\n'
             f'  - Varios estados verde/amarillo/rojo para testear cambio de estado'
         ))

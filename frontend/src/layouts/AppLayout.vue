@@ -9,6 +9,7 @@
       <div class="navbar-menu">
         <RouterLink to="/productos" class="nav-link">Productos</RouterLink>
         <RouterLink to="/revision" class="nav-link">Revisión</RouterLink>
+        <RouterLink v-if="auth.esAdmin" to="/codigo-libre" class="nav-link">Código libre</RouterLink>
         <RouterLink v-if="auth.esAdmin" to="/catalogos" class="nav-link">Catálogos</RouterLink>
         <RouterLink v-if="auth.esAdmin" to="/usuarios" class="nav-link">Usuarios</RouterLink>
         <div class="nav-divider"></div>
@@ -53,6 +54,10 @@
         <RouterLink to="/revision" class="mobile-link" @click="menuAbierto = false">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           Revisión
+        </RouterLink>
+        <RouterLink v-if="auth.esAdmin" to="/codigo-libre" class="mobile-link" @click="menuAbierto = false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+          Código libre
         </RouterLink>
         <RouterLink v-if="auth.esAdmin" to="/catalogos" class="mobile-link" @click="menuAbierto = false">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>

@@ -41,6 +41,12 @@ const router = createRouter({
           meta: { soloAdmin: true },
         },
         {
+          path: 'codigo-libre',
+          name: 'codigo-libre',
+          component: () => import('@/views/CodigoLibreView.vue'),
+          meta: { soloAdmin: true },
+        },
+        {
           path: 'revision',
           name: 'revision',
           component: () => import('@/views/RevisionView.vue'),

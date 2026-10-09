@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from productos.models import Producto, ProductoCodigo, Historial
+from categorias.models import CodigoLibre
 
 
 def _validar_codigos(codigos_data, excluir_producto_id=None):
@@ -49,6 +50,10 @@ def crear_producto(data: dict, usuario) -> Producto:
             codigo_uno=c['codigo_uno'],
             codigo_dos=c['codigo_dos'],
         )
+        CodigoLibre.objects.filter(
+            codigo_uno=c['codigo_uno'],
+            codigo_dos=c['codigo_dos'],
+        ).delete()
 
     return producto
 
@@ -120,6 +125,10 @@ def actualizar_producto(producto, data: dict, usuario) -> Producto:
                     codigo_uno=c['codigo_uno'],
                     codigo_dos=c['codigo_dos'],
                 )
+                CodigoLibre.objects.filter(
+                    codigo_uno=c['codigo_uno'],
+                    codigo_dos=c['codigo_dos'],
+                ).delete()
                 valor = f"{c['codigo_uno'].valor}-{c['codigo_dos'].valor}"
                 campos_modificados.append(('codigo_agregado', '', valor))
 
@@ -152,6 +161,7 @@ def agregar_codigo(producto, codigo_uno, codigo_dos, usuario) -> ProductoCodigo:
         codigo_uno=codigo_uno,
         codigo_dos=codigo_dos,
     )
+    CodigoLibre.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).delete()
     Historial.objects.create(
         producto=producto,
         usuario=usuario,

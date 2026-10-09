@@ -68,3 +68,14 @@ class CodigoDos(models.Model):
 
     def __str__(self):
         return self.valor
+
+
+class CodigoLibre(models.Model):
+    codigo_uno = models.ForeignKey(CodigoUno, on_delete=models.PROTECT, related_name='codigos_libres')
+    codigo_dos = models.ForeignKey(CodigoDos, on_delete=models.PROTECT, related_name='codigos_libres')
+
+    class Meta:
+        unique_together = [['codigo_uno', 'codigo_dos']]
+
+    def __str__(self):
+        return f"{self.codigo_uno.valor}-{self.codigo_dos.valor}"
