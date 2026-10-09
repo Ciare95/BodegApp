@@ -76,6 +76,10 @@
               <input v-model="form.nombre" required placeholder="Nombre completo" />
             </div>
             <div class="field">
+              <label>Usuario</label>
+              <input v-model="form.username" required placeholder="nombre_usuario" />
+            </div>
+            <div class="field">
               <label>Correo electrónico</label>
               <input v-model="form.email" type="email" required placeholder="usuario@empresa.com" />
             </div>
@@ -132,7 +136,7 @@ const errorModal = ref('')
 const mostrarModal = ref(false)
 const guardando = ref(false)
 
-const form = reactive({ nombre: '', email: '', password: '', rol: 'empleado' })
+const form = reactive({ nombre: '', username: '', email: '', password: '', rol: 'empleado' })
 
 function formatFecha(fecha) {
   return new Date(fecha).toLocaleDateString('es-CO')
@@ -144,7 +148,7 @@ async function cargar() {
 }
 
 function abrirNuevo() {
-  Object.assign(form, { nombre: '', email: '', password: '', rol: 'empleado' })
+  Object.assign(form, { nombre: '', username: '', email: '', password: '', rol: 'empleado' })
   errorModal.value = ''
   mostrarModal.value = true
 }

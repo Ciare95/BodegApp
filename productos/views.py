@@ -7,18 +7,47 @@ from productos.models import Producto, Historial
 from productos.serializers import (
     ProductoSerializer,
     ProductoWriteSerializer,
-    ProductoCodigoSerializer,
-    ProductoCodigoWriteSerializer,
     HistorialSerializer,
 )
-from productos.service import (
-    crear_producto,
-    actualizar_producto,
-    cambiar_estado,
-    agregar_codigo,
-    eliminar_codigo,
-)
+from productos.service import crear_producto, actualizar_producto, cambiar_estado
 from usuarios.permissions import EsSoloAdmin, EsAdminOEmpleado
+
+
+def _parsear_error(exc_data):
+    """Convierte errores de DRF/Django en un mensaje legible."""
+    if isinstance(exc_data, str):
+        return exc_data
+    if isinstance(exc_data, list):
+        return ' '.join(str(e) for e in exc_data)
+    if isinstance(exc_data, dict):
+        if 'non_field_errors' in exc_data:
+            msgs = exc_data['non_field_errors']
+            msg = str(msgs[0]) if msgs else ''
+            if 'codigo_uno' in msg and 'codigo_dos' in msg:
+                return 'Ese código ya está asignado a otro producto.'
+            if 'subcategoria' in msg:
+                return 'Ya existe un producto con esa combinación de subcategoría y medidas.'
+            return msg
+        partes = []
+        for errores in exc_data.values():
+            partes.append(str(errores[0] if isinstance(errores, list) else errores))
+        return ' '.join(partes)
+    return str(exc_data)
+
+
+def _traducir_validation_error(exc):
+    """Traduce ValidationError de Django a mensaje legible."""
+    msg = exc.message if hasattr(exc, 'message') else str(exc)
+    msg_dict = exc.message_dict if hasattr(exc, 'message_dict') else {}
+    # unique_together dispara message_dict con '__all__'
+    if '__all__' in msg_dict:
+        raw = str(msg_dict['__all__'][0])
+        if 'codigo_uno' in raw and 'codigo_dos' in raw:
+            return 'Ese código ya está asignado a otro producto.'
+        if 'subcategoria' in raw:
+            return 'Ya existe un producto con esa combinación de subcategoría y medidas.'
+        return raw
+    return msg
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
@@ -28,39 +57,39 @@ class ProductoViewSet(viewsets.ModelViewSet):
             'subcategoria__categoria',
             'medida_principal',
             'medida_secundaria',
+            'codigo_uno',
+            'codigo_dos',
             'actualizado_por',
-        ).prefetch_related(
-            'codigos__codigo_uno',
-            'codigos__codigo_dos',
         ).order_by('orden', 'id')
 
         q = self.request.query_params.get('q')
         if q:
             from django.db.models import Q
-            tokens = q.strip().split()
-            for token in tokens:
-                # Si el token tiene formato "XX-YY", buscar prefijo y sufijo juntos
-                if '-' in token:
-                    partes = token.split('-', 1)
-                    prefijo, sufijo = partes[0], partes[1]
+            import re
+            raw = q.strip().upper()
+
+            # Si el query contiene un guión, buscar exclusivamente por código
+            if '-' in raw:
+                partes = raw.split('-', 1)
+                prefijo, sufijo = partes[0].strip(), partes[1].strip()
+                qs = qs.filter(
+                    codigo_uno__valor__icontains=prefijo,
+                    codigo_dos__valor__icontains=sufijo,
+                )
+            else:
+                # Reagrupar tokens: "1 1/2" se trata como un solo token
+                tokens = re.findall(r'\d+\s+\d+/\d+|\d+/\d+|\d+|[A-Z]+', raw)
+                for token in tokens:
+                    token = token.strip()
+                    if not token:
+                        continue
                     qs = qs.filter(
                         Q(subcategoria__nombre__icontains=token)
                         | Q(subcategoria__categoria__nombre__icontains=token)
                         | Q(medida_principal__valor__icontains=token)
                         | Q(medida_secundaria__valor__icontains=token)
-                        | Q(
-                            codigos__codigo_uno__valor__icontains=prefijo,
-                            codigos__codigo_dos__valor__icontains=sufijo,
-                        )
-                    )
-                else:
-                    qs = qs.filter(
-                        Q(subcategoria__nombre__icontains=token)
-                        | Q(subcategoria__categoria__nombre__icontains=token)
-                        | Q(medida_principal__valor__icontains=token)
-                        | Q(medida_secundaria__valor__icontains=token)
-                        | Q(codigos__codigo_uno__valor__icontains=token)
-                        | Q(codigos__codigo_dos__valor__icontains=token)
+                        | Q(codigo_uno__valor__icontains=token)
+                        | Q(codigo_dos__valor__icontains=token)
                     )
 
         categoria_id = self.request.query_params.get('categoria_id')
@@ -77,7 +106,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         codigo_uno_id = self.request.query_params.get('codigo_uno_id')
         if codigo_uno_id:
-            qs = qs.filter(codigos__codigo_uno_id=codigo_uno_id)
+            qs = qs.filter(codigo_uno_id=codigo_uno_id)
 
         return qs.distinct()
 
@@ -93,51 +122,26 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = ProductoWriteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response({'detail': _parsear_error(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
         try:
             producto = crear_producto(serializer.validated_data, request.user)
             return Response(ProductoSerializer(producto).data, status=status.HTTP_201_CREATED)
         except ValidationError as e:
-            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': _traducir_validation_error(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         producto = self.get_object()
         serializer = ProductoWriteSerializer(
             producto, data=request.data, partial=kwargs.get('partial', False)
         )
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response({'detail': _parsear_error(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
         try:
             producto = actualizar_producto(producto, serializer.validated_data, request.user)
             return Response(ProductoSerializer(producto).data)
         except ValidationError as e:
-            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['post'], url_path='codigos', permission_classes=[EsSoloAdmin])
-    def agregar_codigo(self, request, pk=None):
-        """POST /api/productos/{id}/codigos/ — agrega un código al producto."""
-        producto = self.get_object()
-        serializer = ProductoCodigoWriteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            pc = agregar_codigo(
-                producto,
-                serializer.validated_data['codigo_uno'],
-                serializer.validated_data['codigo_dos'],
-                request.user,
-            )
-            return Response(ProductoCodigoSerializer(pc).data, status=status.HTTP_201_CREATED)
-        except ValidationError as e:
-            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['delete'], url_path='codigos/(?P<codigo_id>[0-9]+)', permission_classes=[EsSoloAdmin])
-    def eliminar_codigo(self, request, pk=None, codigo_id=None):
-        """DELETE /api/productos/{id}/codigos/{codigo_id}/ — elimina un código."""
-        producto = self.get_object()
-        try:
-            eliminar_codigo(producto, int(codigo_id), request.user)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ValidationError as e:
-            return Response({'detail': e.message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': _traducir_validation_error(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'], url_path='reordenar', permission_classes=[EsSoloAdmin])
     def reordenar(self, request):

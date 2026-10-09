@@ -107,13 +107,15 @@ id
 subcategoria        FK → Subcategoria       (obligatorio)
 medida_principal    FK → MedidaPrincipal    (obligatorio)
 medida_secundaria   FK → MedidaSecundaria   (nullable)
-codigo_uno          FK → CodigoUno          (obligatorio)
-codigo_dos          FK → CodigoDos          (obligatorio)
+codigo_uno          FK → CodigoUno          (nullable)
+codigo_dos          FK → CodigoDos          (nullable)
 estado              CharField: 'verde' | 'amarillo' | 'rojo'
 creado_en           DateTimeField auto
 actualizado_en      DateTimeField auto
 actualizado_por     FK → Usuario (nullable)
 ```
+
+**Regla de pareja de códigos:** `codigo_uno` y `codigo_dos` siempre deben ir juntos. Si uno tiene valor el otro también debe tenerlo; si uno es nulo el otro también debe serlo. Un producto puede tener exactamente un código completo o ninguno. Esta invariante se valida en `clean()`.
 
 **Nombre completo calculado** (property):
 ```
@@ -123,13 +125,16 @@ subcategoria.nombre + medida_principal.valor + "X" + medida_secundaria.valor
 
 **Código completo calculado** (property):
 ```
-codigo_uno.valor + "-" + codigo_dos.valor
-→ "EB-40"
+codigo_uno.valor + "-" + codigo_dos.valor  →  "EB-40"
+(ninguno)                                  →  "—"
 ```
 
-**Restricción de unicidad compuesta:**
+**Restricciones de unicidad compuestas:**
 ```python
-unique_together = ['subcategoria', 'medida_principal', 'medida_secundaria', 'codigo_uno', 'codigo_dos']
+unique_together = [
+    ['subcategoria', 'medida_principal', 'medida_secundaria'],  # nombre único
+    ['codigo_uno', 'codigo_dos'],                               # código único global
+]
 ```
 
 ### Modelo Historial

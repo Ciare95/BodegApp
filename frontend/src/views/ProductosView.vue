@@ -27,7 +27,7 @@
             @click="irAProducto(p)"
             @mouseenter="indiceActivo = i"
           >
-            <span class="res-codigo">{{ p.codigos?.[0]?.codigo_completo ?? '—' }}</span>
+            <span class="res-codigo">{{ p.codigo_completo ?? '—' }}</span>
             <span class="res-nombre">{{ p.nombre_completo }}</span>
             <span :class="['res-estado', p.estado]"><span class="dot"></span></span>
           </li>
@@ -38,25 +38,47 @@
       </Transition>
     </div>
 
-    <!-- Breadcrumb + acción -->
-    <div class="toolbar">
-      <nav class="breadcrumb">
-        <button class="crumb" :class="{ activo: !categoriaActiva }" @click="resetear">Productos</button>
-        <template v-if="categoriaActiva">
-          <span class="sep">›</span>
-          <button class="crumb" :class="{ activo: !subcategoriaActiva }" @click="seleccionarCategoria(categoriaActiva)">
-            {{ categoriaActiva.nombre }}
+    <!-- Zona fija: breadcrumb + filtros (cuando hay productos) -->
+    <div class="sticky-zone">
+      <div class="toolbar">
+        <nav class="breadcrumb">
+          <button class="crumb" :class="{ activo: !categoriaActiva }" @click="resetear">Productos</button>
+          <template v-if="categoriaActiva">
+            <span class="sep">›</span>
+            <button class="crumb" :class="{ activo: !subcategoriaActiva }" @click="seleccionarCategoria(categoriaActiva)">
+              {{ categoriaActiva.nombre }}
+            </button>
+          </template>
+          <template v-if="subcategoriaActiva">
+            <span class="sep">›</span>
+            <span class="crumb activo">{{ subcategoriaActiva.nombre }}</span>
+          </template>
+        </nav>
+        <RouterLink
+            v-if="auth.esAdmin"
+            :to="{ name: 'producto-nuevo', query: { categoria_id: categoriaActiva?.id, subcategoria_id: subcategoriaActiva?.id } }"
+            class="btn-primary"
+          >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo
+        </RouterLink>
+      </div>
+
+      <!-- Filtro estado (solo visible en lista de productos) -->
+      <div v-if="subcategoriaActiva && !cargando" class="tabla-toolbar">
+        <div class="estado-filtros">
+          <button
+            v-for="op in estadoOpciones"
+            :key="op.valor"
+            :class="['filtro-estado', op.valor, { activo: filtroEstado === op.valor }]"
+            @click="toggleFiltroEstado(op.valor)"
+          >
+            <span class="dot"></span>{{ op.label }}
+            <svg v-if="filtroEstado === op.valor" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
-        </template>
-        <template v-if="subcategoriaActiva">
-          <span class="sep">›</span>
-          <span class="crumb activo">{{ subcategoriaActiva.nombre }}</span>
-        </template>
-      </nav>
-      <RouterLink v-if="auth.esAdmin" to="/productos/nuevo" class="btn-primary">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nuevo
-      </RouterLink>
+        </div>
+        <span class="count-badge">{{ productos.length }}</span>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -106,22 +128,6 @@
     <template v-else>
       <p v-if="errorEstado" class="error-msg">{{ errorEstado }}</p>
 
-      <!-- Filtro estado -->
-      <div class="tabla-toolbar">
-        <div class="estado-filtros">
-          <button
-            v-for="op in estadoOpciones"
-            :key="op.valor"
-            :class="['filtro-estado', op.valor, { activo: filtroEstado === op.valor }]"
-            @click="toggleFiltroEstado(op.valor)"
-          >
-            <span class="dot"></span>{{ op.label }}
-            <svg v-if="filtroEstado === op.valor" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <span class="count-badge">{{ productos.length }}</span>
-      </div>
-
       <div class="table-wrap table-desktop">
         <table class="tabla">
           <thead>
@@ -152,7 +158,8 @@
                 <RouterLink :to="`/productos/${p.id}`" class="nombre-link">{{ p.nombre_completo }}</RouterLink>
               </td>
               <td class="col-codigo">
-                <span v-for="c in p.codigos" :key="c.id" class="codigo-tag">{{ c.codigo_completo }}</span>
+                <span v-if="p.codigo_completo && p.codigo_completo !== '—'" class="codigo-tag">{{ p.codigo_completo }}</span>
+                <span v-else class="sin-codigo">—</span>
               </td>
               <td class="col-estado">
                 <div class="estado-selector">
@@ -168,7 +175,7 @@
               <td class="col-actions">
                 <div class="row-actions">
                   <RouterLink :to="`/productos/${p.id}`" class="btn-row">Ver</RouterLink>
-                  <RouterLink v-if="auth.esAdmin" :to="`/productos/${p.id}/editar`" class="btn-row">Editar</RouterLink>
+                  <RouterLink v-if="auth.esAdmin" :to="{ name: 'producto-editar', params: { id: p.id }, query: { categoria_id: categoriaActiva?.id, subcategoria_id: subcategoriaActiva?.id } }" class="btn-row">Editar</RouterLink>
                 </div>
               </td>
             </tr>
@@ -185,7 +192,8 @@
         <div v-for="p in productos" :key="p.id" class="product-card">
           <div class="card-top">
             <div class="card-codes">
-              <span v-for="c in p.codigos" :key="c.id" class="codigo-tag">{{ c.codigo_completo }}</span>
+              <span v-if="p.codigo_completo && p.codigo_completo !== '—'" class="codigo-tag">{{ p.codigo_completo }}</span>
+              <span v-else class="sin-codigo">—</span>
             </div>
             <div class="estado-selector">
               <button
@@ -200,7 +208,7 @@
           <RouterLink :to="`/productos/${p.id}`" class="card-nombre">{{ p.nombre_completo }}</RouterLink>
           <div class="card-actions">
             <RouterLink :to="`/productos/${p.id}`" class="btn-row">Ver detalle</RouterLink>
-            <RouterLink v-if="auth.esAdmin" :to="`/productos/${p.id}/editar`" class="btn-row">Editar</RouterLink>
+            <RouterLink v-if="auth.esAdmin" :to="{ name: 'producto-editar', params: { id: p.id }, query: { categoria_id: categoriaActiva?.id, subcategoria_id: subcategoriaActiva?.id } }" class="btn-row">Editar</RouterLink>
           </div>
         </div>
       </div>
@@ -211,13 +219,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfirm } from '@/composables/useConfirm'
 import client from '@/api/client'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const { showConfirm } = useConfirm()
 
 // ── Navegación por niveles ──
@@ -361,12 +370,38 @@ function onDrop(target) {
 onMounted(async () => {
   const { data } = await client.get('/categorias/')
   categorias.value = data.results ?? data
-  heroInput.value?.focus()
+
+  // Restaurar estado si venimos del form con query params
+  const qCatId = Number(route.query.categoria_id)
+  const qSubId = Number(route.query.subcategoria_id)
+  if (qCatId && qSubId) {
+    const cat = (data.results ?? data).find(c => c.id === qCatId)
+    if (cat) {
+      await seleccionarCategoria(cat)
+      const sub = subcategorias.value.find(s => s.id === qSubId)
+      if (sub) await seleccionarSubcategoria(sub)
+    }
+  } else {
+    heroInput.value?.focus()
+  }
 })
 </script>
 
 <style scoped>
 .productos-page { display: flex; flex-direction: column; gap: 1.5rem; }
+
+/* ── Zona sticky (breadcrumb + filtros) ── */
+.sticky-zone {
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  margin-bottom: -1rem;
+}
 
 /* ── Hero ── */
 .hero {

@@ -78,7 +78,7 @@ class CodigoUnoViewSet(CatalogoBaseViewSet):
     def get_queryset(self):
         qs = CodigoUno.objects.all().order_by('valor')
         if self.request.query_params.get('con_conteo') == 'true':
-            qs = qs.annotate(producto_count=Count('producto_codigos__producto', distinct=True))
+            qs = qs.annotate(producto_count=Count('productos', distinct=True))
         return qs
 
 
@@ -104,8 +104,8 @@ class CodigoLibreViewSet(CatalogoBaseViewSet):
         return ' '.join(partes)
 
     def _validar_no_asignado(self, codigo_uno, codigo_dos):
-        from productos.models import ProductoCodigo
-        if ProductoCodigo.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).exists():
+        from productos.models import Producto
+        if Producto.objects.filter(codigo_uno=codigo_uno, codigo_dos=codigo_dos).exists():
             raise ValidationError('Ese código ya está asignado a un producto.')
 
     def create(self, request, *args, **kwargs):

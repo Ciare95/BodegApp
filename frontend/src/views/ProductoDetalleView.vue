@@ -12,7 +12,7 @@
     <div class="detalle-hero">
       <div class="hero-left">
         <div class="codigos-row">
-          <span v-for="c in producto.codigos" :key="c.id" class="codigo-hero">{{ c.codigo_completo }}</span>
+          <span v-if="producto.codigo_completo && producto.codigo_completo !== '—'" class="codigo-hero">{{ producto.codigo_completo }}</span>
           <span :class="['estado-pill', producto.estado]">
             <span class="dot"></span>{{ producto.estado }}
           </span>

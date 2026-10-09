@@ -6,7 +6,7 @@ from categorias.models import (
     MedidaPrincipal, MedidaSecundaria,
     CodigoUno, CodigoDos, CodigoLibre,
 )
-from productos.models import Producto, ProductoCodigo
+from productos.models import Producto
 
 
 CATEGORIAS = ['TORNILLERIA', 'HERRAMIENTAS', 'TUBERIA']
@@ -23,8 +23,8 @@ SUBCATEGORIAS = [
 MEDIDAS_PRINCIPALES = ['1/4', '3/8', '1/2', '3/4', '1']
 MEDIDAS_SECUNDARIAS = ['1"', '2"', '3"', '5"']
 
-# Prefijos: letras (A, B, C, AB, BB) + números (1, 2, 3) + D sin productos
-CODIGOS_UNO = ['A', 'B', 'C', 'AB', 'BB', 'D', '1', '2', '3']
+# Prefijos: letras (A–J, AB, BB) + números (1, 2, 3) + D sin productos
+CODIGOS_UNO = ['A', 'B', 'C', 'AB', 'BB', 'D', 'E', 'F', 'G', 'H', 'I', 'J', '1', '2', '3']
 CODIGOS_DOS = ['1', '2', '3', '4', 'AB']
 
 # (subcategoria_nombre, medida_principal, medida_secundaria_o_None, estado, prefijo, sufijo)
@@ -54,6 +54,29 @@ PRODUCTOS = [
     ('PVC',             '3/4',  '3"',   'amarillo', '2',  '1'),
     # ── Prefijo 3 (1 producto)
     ('DESTORNILLADORES','1/2',  '5"',   'verde',    '3',  '1'),
+
+    # ── Extra PERNOS para testear scroll (21 productos adicionales) ──
+    ('PERNOS',          '1',    None,   'verde',    'E',  '1'),
+    ('PERNOS',          '3/4',  None,   'amarillo', 'E',  '2'),
+    ('PERNOS',          '1/4',  '2"',   'verde',    'E',  '3'),
+    ('PERNOS',          '3/8',  '2"',   'verde',    'E',  '4'),
+    ('PERNOS',          '1/2',  '2"',   'rojo',     'E',  'AB'),
+    ('PERNOS',          '1',    '2"',   'verde',    'F',  '1'),
+    ('PERNOS',          '3/4',  '2"',   'verde',    'F',  '2'),
+    ('PERNOS',          '1/4',  '3"',   'amarillo', 'F',  '3'),
+    ('PERNOS',          '3/8',  '3"',   'verde',    'F',  '4'),
+    ('PERNOS',          '1/2',  '3"',   'verde',    'G',  '1'),
+    ('PERNOS',          '1',    '3"',   'verde',    'G',  '2'),
+    ('PERNOS',          '3/4',  '3"',   'rojo',     'G',  '3'),
+    ('PERNOS',          '1/4',  '5"',   'verde',    'H',  '1'),
+    ('PERNOS',          '3/8',  '5"',   'verde',    'H',  '2'),
+    ('PERNOS',          '1/2',  '5"',   'verde',    'H',  '3'),
+    ('PERNOS',          '1',    '5"',   'amarillo', 'H',  '4'),
+    ('PERNOS',          '3/4',  '5"',   'verde',    'I',  '1'),
+    ('PERNOS',          '1/4',  '1"',   'verde',    'I',  '2'),
+    ('PERNOS',          '3/8',  '1"',   'verde',    'J',  '1'),
+    ('PERNOS',          '1/2',  '1"',   'verde',    'J',  '2'),
+    ('PERNOS',          '1',    '1"',   'verde',    'J',  '3'),
 ]
 
 
@@ -70,7 +93,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         if options['flush']:
-            ProductoCodigo.objects.all().delete()
+            CodigoLibre.objects.all().delete()
             Producto.objects.all().delete()
             CodigoDos.objects.all().delete()
             CodigoUno.objects.all().delete()
@@ -131,29 +154,24 @@ class Command(BaseCommand):
                 subcategoria=subs[sub_n],
                 medida_principal=mps[mp_v],
                 medida_secundaria=ms_obj,
-                defaults={'estado': estado},
+                defaults={
+                    'estado': estado,
+                    'codigo_uno': cu[prefijo],
+                    'codigo_dos': cd[sufijo],
+                },
             )
             if created:
                 creados += 1
+                self.stdout.write(f'  + {prefijo}-{sufijo}: {prod.nombre_completo} [{estado}]')
             else:
                 existentes += 1
 
-            ProductoCodigo.objects.get_or_create(
-                codigo_uno=cu[prefijo],
-                codigo_dos=cd[sufijo],
-                defaults={'producto': prod},
-            )
-            codigo = f'{prefijo}-{sufijo}'
-            if created:
-                self.stdout.write(f'  + {codigo}: {prod.nombre_completo} [{estado}]')
-
         # Códigos libres: pares sin producto asignado para testear la funcionalidad
-        # Usan prefijos/sufijos ya existentes en los catálogos
         CODIGOS_LIBRES = [
-            ('B', 'AB'),   # testea: letra antes que número en sufijo
+            ('B', 'AB'),
             ('C', '2'),
             ('C', '3'),
-            ('D', '1'),    # prefijo D: sin productos, aquí sí tiene código libre
+            ('D', '1'),
             ('D', '2'),
             ('1', 'AB'),
             ('2', '2'),
@@ -161,8 +179,7 @@ class Command(BaseCommand):
         ]
         libres_creados = 0
         for prefijo_cl, sufijo_cl in CODIGOS_LIBRES:
-            # Saltar si este par ya está asignado a un producto
-            if ProductoCodigo.objects.filter(
+            if Producto.objects.filter(
                 codigo_uno=cu[prefijo_cl], codigo_dos=cd[sufijo_cl]
             ).exists():
                 continue
@@ -181,5 +198,6 @@ class Command(BaseCommand):
             f'  - D no tiene productos (testea "Sin productos" en Revision)\n'
             f'  - A tiene sufijo "AB" (testea letras-antes-numeros en detalle)\n'
             f'  - B-AB y D-1/D-2 testean Codigo libre\n'
+            f'  - PERNOS tiene 25 productos para testear scroll\n'
             f'  - Varios estados verde/amarillo/rojo para testear cambio de estado'
         ))
