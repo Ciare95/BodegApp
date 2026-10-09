@@ -41,6 +41,16 @@ const router = createRouter({
           meta: { soloAdmin: true },
         },
         {
+          path: 'revision',
+          name: 'revision',
+          component: () => import('@/views/RevisionView.vue'),
+        },
+        {
+          path: 'revision/:prefijo',
+          name: 'revision-detalle',
+          component: () => import('@/views/RevisionDetalleView.vue'),
+        },
+        {
           path: 'catalogos',
           name: 'catalogos',
           component: () => import('@/views/CatalogosView.vue'),

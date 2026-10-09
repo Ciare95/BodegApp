@@ -75,6 +75,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
         if estado:
             qs = qs.filter(estado=estado)
 
+        codigo_uno_id = self.request.query_params.get('codigo_uno_id')
+        if codigo_uno_id:
+            qs = qs.filter(codigos__codigo_uno_id=codigo_uno_id)
+
         return qs.distinct()
 
     def get_serializer_class(self):
