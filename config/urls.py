@@ -15,11 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.static import serve
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 from usuarios.views import LoginView
+from config.views import index
 
 urlpatterns = [
     path('media/<path:path>', serve, {'document_root': settings.MEDIA_ROOT}),
@@ -31,4 +32,5 @@ urlpatterns = [
     path('api/', include('categorias.urls')),
     path('api/', include('productos.urls')),
     path('api/qr/', include('qr.urls')),
+    re_path(r'^.*$', index),
 ]
